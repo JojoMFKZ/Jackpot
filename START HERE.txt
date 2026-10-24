@@ -2,7 +2,7 @@ JACKPOT - START HERE
 ====================
 
 This folder is the complete JACKPOT project. To give JACKPOT to people you
-need the two installers (Mac .dmg and Windows .exe). A Mac installer can only
+need the two installers (Mac .pkg and Windows .exe). A Mac installer can only
 be built on a Mac and a Windows installer only on Windows, so pick one:
 
 -------------------------------------------------------------------------------
@@ -11,32 +11,31 @@ OPTION A - GitHub builds both for you (easiest, no PC needed)
 1. Make a free GitHub account and a new empty repository.
 2. Upload this whole folder to it (GitHub Desktop makes this drag-and-drop).
 3. Open the repository's "Actions" tab and wait ~20 minutes.
-4. Download "JACKPOT-download" from the finished run. It's ONE zip with:
-     JACKPOT-1.0.0-mac.dmg
-     JACKPOT-1.0.0-windows-setup.exe
-     HOW TO INSTALL.txt
-   That zip is what you send people.
-5. Want a public download page? Create a tag called v1.0.0 (Releases > Draft a
-   new release > tag v1.0.0 > Publish). The zip gets attached automatically.
+4. The Releases page then has two downloads:
+     JACKPOT-Installer-Mac.pkg
+     JACKPOT-Installer-Windows.exe
+   Link people straight to them (always the newest version):
+     https://github.com/<you>/<repo>/releases/latest/download/JACKPOT-Installer-Mac.pkg
+     https://github.com/<you>/<repo>/releases/latest/download/JACKPOT-Installer-Windows.exe
 
 -------------------------------------------------------------------------------
 OPTION B - build on your own computers
 -------------------------------------------------------------------------------
 Mac:     open Terminal and run
            cd ~/Downloads/JACKPOT && bash "Build Mac Installer.command"
-         Result: dist/JACKPOT-1.0.0-mac.dmg   (~15-20 min the first time)
+         Result: dist/JACKPOT-Installer-Mac.pkg   (~15-20 min the first time)
 
 Windows: double-click  "Build Windows Installer.bat"
          It installs anything missing by itself (Git, CMake, C++ tools,
-         Inno Setup). Result: dist\JACKPOT-1.0.0-windows-setup.exe
+         Inno Setup). Result: dist\JACKPOT-Installer-Windows.exe
          (20-40 min the first time)
 
-Then zip the .dmg, the .exe and installer/HOW TO INSTALL.txt together.
+Give people the .pkg (Mac) or the .exe (Windows).
 
 -------------------------------------------------------------------------------
 Just want to try it yourself on this Mac?
 -------------------------------------------------------------------------------
-Run the Mac builder above, open the .dmg and run "Install JACKPOT.pkg".
+Run the Mac builder above and double-click the .pkg.
 
 The installers aren't signed with paid Apple/Microsoft certificates, so people
 see a one-time security warning. HOW TO INSTALL.txt explains how to get past

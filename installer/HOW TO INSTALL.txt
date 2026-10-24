@@ -7,18 +7,18 @@ Wander an endless map, breed sounds like little creatures, keep the ones you lov
 MAC  (macOS 10.15 or newer, Apple Silicon or Intel)
 -------------------------------------------------------------------------------
 1. Quit Ableton.
-2. Open  JACKPOT-x.x.x-mac.dmg  and double-click  "Install JACKPOT.pkg".
+2. Double-click  JACKPOT-Installer-Mac.pkg  and click through.
 3. If macOS says it can't open it (the plug-in isn't signed by Apple):
      macOS 15+:  try once, then System Settings > Privacy & Security >
                  scroll down > "Open Anyway".
      Older:      right-click the file > Open > Open.
-4. To uninstall later: open the same disk image and run "Uninstall JACKPOT".
+4. To uninstall later: Applications > Jackpot Audio > Uninstall JACKPOT.
 
 -------------------------------------------------------------------------------
 WINDOWS  (Windows 10 or 11, 64-bit)
 -------------------------------------------------------------------------------
 1. Quit Ableton.
-2. Run  JACKPOT-x.x.x-windows-setup.exe
+2. Double-click  JACKPOT-Installer-Windows.exe  and click through.
 3. If Windows says "Windows protected your PC": click "More info" > "Run anyway".
 4. To uninstall later: Settings > Apps > JACKPOT (or Start menu > JACKPOT).
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Double-click me (or run: bash "Build Mac Installer.command")
-# Builds JACKPOT and makes dist/JACKPOT-<version>-mac.dmg (installer + uninstaller).
+# Builds JACKPOT and makes dist/JACKPOT-Installer-Mac.pkg.
 # First run takes ~15-20 minutes. Nothing is installed system-wide except
 # Apple's free Command Line Tools if you don't already have them.
 cd "$(dirname "$0")" || exit 1
@@ -60,9 +60,9 @@ chmod +x installer/mac/make_installer.sh installer/mac/scripts/postinstall
 ./installer/mac/make_installer.sh
 
 say_step "Done!"
-ls -1 dist/*.dmg
+ls -1 dist/*.pkg
 open dist
 echo ""
-echo "The .dmg in the window that just opened is what you give people."
+echo "The .pkg in the window that just opened is what you give people."
 echo "It contains 'Install JACKPOT.pkg' and 'Uninstall JACKPOT'."
 read -r -p "Press Return to close." _

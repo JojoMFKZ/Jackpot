@@ -1,5 +1,5 @@
 @echo off
-REM Builds dist\JACKPOT-<version>-windows-setup.exe
+REM Builds dist\JACKPOT-Installer-Windows.exe
 REM Run after build_windows.bat has built the plug-in.
 REM Needs Inno Setup 6: https://jrsoftware.org/isdl.php
 cd /d "%~dp0\..\.."
@@ -23,5 +23,5 @@ for /f "tokens=3" %%v in ('findstr /b /c:"project(JACKPOT VERSION" CMakeLists.tx
 
 %ISCC% /DAppVersion=%VERSION% installer\windows\JACKPOT.iss || (pause & exit /b 1)
 echo.
-echo Done: dist\JACKPOT-%VERSION%-windows-setup.exe
+echo Done: dist\JACKPOT-Installer-Windows.exe
 pause

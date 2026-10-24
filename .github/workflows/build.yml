@@ -1,7 +1,11 @@
 name: Build JACKPOT
 
 # Every push builds the Mac and Windows installers (download them from the run's Artifacts).
-# Push a tag like v1.0.0 to also publish them as a GitHub Release people can download.
+# Pushes to main also publish them as a GitHub Release with two downloads:
+#   JACKPOT-Installer-Mac.pkg  and  JACKPOT-Installer-Windows.exe
+# These always point at the newest version:
+#   https://github.com/<you>/<repo>/releases/latest/download/JACKPOT-Installer-Mac.pkg
+#   https://github.com/<you>/<repo>/releases/latest/download/JACKPOT-Installer-Windows.exe
 on:
   push:
   workflow_dispatch:
@@ -47,7 +51,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
           rm certs.p12
 
-      - name: Make installer (.dmg with .pkg + uninstaller)
+      - name: Make installer (.pkg, installs plug-ins + uninstaller)
         env:
           JACKPOT_SIGN_APP_ID: ${{ secrets.JACKPOT_SIGN_APP_ID }}
           JACKPOT_SIGN_INSTALLER_ID: ${{ secrets.JACKPOT_SIGN_INSTALLER_ID }}
@@ -58,15 +62,18 @@ jobs:
 
       - name: Check the package
         run: |
-          hdiutil attach dist/*.dmg -mountpoint /tmp/jackpot_dmg -nobrowse
-          ls -la /tmp/jackpot_dmg
-          pkgutil --payload-files "/tmp/jackpot_dmg/Install JACKPOT.pkg" | head -20 || true
-          hdiutil detach /tmp/jackpot_dmg
+          ls -la dist
+          pkgutil --payload-files dist/JACKPOT-Installer-Mac.pkg | head -30
+          sudo installer -pkg dist/JACKPOT-Installer-Mac.pkg -target /
+          test -d /Library/Audio/Plug-Ins/VST3/JACKPOT.vst3
+          test -d /Library/Audio/Plug-Ins/Components/JACKPOT.component
+          test -d "/Applications/Jackpot Audio/Uninstall JACKPOT.app"
+          echo "Mac install worked."
 
       - uses: actions/upload-artifact@v4
         with:
           name: JACKPOT-mac-installer
-          path: dist/*.dmg
+          path: dist/*.pkg
 
 
   windows:
@@ -99,7 +106,7 @@ jobs:
       - name: Test install + uninstall
         shell: pwsh
         run: |
-          $setup = Get-ChildItem dist\*-windows-setup.exe | Select-Object -First 1
+          $setup = Get-ChildItem dist\JACKPOT-Installer-Windows.exe | Select-Object -First 1
           Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           if (-not (Test-Path "$env:CommonProgramFiles\VST3\JACKPOT.vst3\Contents\x86_64-win\JACKPOT.vst3")) { throw "VST3 not installed" }
           $un = Get-ChildItem "$env:ProgramFiles\Jackpot Audio\JACKPOT\unins*.exe" | Select-Object -First 1
@@ -113,41 +120,43 @@ jobs:
           name: JACKPOT-windows-installer
           path: dist/*.exe
 
-  # One zip with both installers + instructions: the thing you hand to people.
-  bundle:
+  # Publish the two installers as the download page (GitHub Release).
+  release:
     needs: [mac, windows]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Make JACKPOT zip
+      - name: Collect installers
         run: |
           V=$(sed -n 's/^project(JACKPOT VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
-          mkdir -p "JACKPOT-$V"
-          cp artifacts/JACKPOT-mac-installer/*.dmg "JACKPOT-$V/"
-          cp artifacts/JACKPOT-windows-installer/*.exe "JACKPOT-$V/"
-          cp "installer/HOW TO INSTALL.txt" "JACKPOT-$V/"
-          zip -r "JACKPOT-$V.zip" "JACKPOT-$V"
-          echo "ZIP=JACKPOT-$V.zip" >> $GITHUB_ENV
           echo "VERSION=$V" >> $GITHUB_ENV
-      - uses: actions/upload-artifact@v4
-        with:
-          name: JACKPOT-download
-          path: ${{ env.ZIP }}
-      - name: Publish download page (GitHub Release)
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+          mkdir out
+          cp artifacts/JACKPOT-mac-installer/JACKPOT-Installer-Mac.pkg out/
+          cp artifacts/JACKPOT-windows-installer/JACKPOT-Installer-Windows.exe out/
+          ls -la out
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION }}
           target_commitish: ${{ github.sha }}
           name: JACKPOT ${{ env.VERSION }}
           make_latest: true
-          files: ${{ env.ZIP }}
+          files: |
+            out/JACKPOT-Installer-Mac.pkg
+            out/JACKPOT-Installer-Windows.exe
           body: |
-            **Download `JACKPOT-${{ env.VERSION }}.zip` below.** It contains the Mac installer (.dmg), the Windows installer (.exe) and HOW TO INSTALL.txt.
+            ## Download
 
-            - **Mac:** open the .dmg, run *Install JACKPOT.pkg*. If macOS blocks it: System Settings > Privacy & Security > Open Anyway.
-            - **Windows:** run the setup .exe. If SmartScreen appears: More info > Run anyway.
-            - **Ableton:** Settings > Plug-Ins > turn on VST3 system folders > Rescan.
+            ### [⬇ Mac](https://github.com/${{ github.repository }}/releases/latest/download/JACKPOT-Installer-Mac.pkg)  ·  [⬇ Windows](https://github.com/${{ github.repository }}/releases/latest/download/JACKPOT-Installer-Windows.exe)
+
+            Open the file you downloaded and click through. That's it.
+
+            - **Mac blocked it?** System Settings > Privacy & Security > scroll down > **Open Anyway**.
+            - **Windows "protected your PC"?** **More info** > **Run anyway**.
+            - **Ableton:** Settings > Plug-Ins > turn on **Use VST3 Plug-In System Folders** > **Rescan**.
+
+            Uninstall: Mac: Applications > Jackpot Audio > Uninstall JACKPOT. Windows: Settings > Apps > JACKPOT.

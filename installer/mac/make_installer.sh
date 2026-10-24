@@ -1,8 +1,7 @@
 #!/bin/bash
-# Builds dist/JACKPOT-<version>-mac.dmg containing:
-#   Install JACKPOT.pkg    (VST3 + AU, user can untick either)
-#   Uninstall JACKPOT.app  (removes the plug-ins, optionally the saved patches)
-#   Read Me.txt
+# Builds dist/JACKPOT-Installer-Mac.pkg: one file, double-click to install.
+#   Installs the VST3 + AU (user can untick either) and
+#   /Applications/Jackpot Audio/Uninstall JACKPOT.app
 #
 # Run on a Mac after building the plug-in (./build_mac.sh, or the CI build).
 #
@@ -23,7 +22,7 @@ VST3="$ART/VST3/JACKPOT.vst3"
 AU="$ART/AU/JACKPOT.component"
 HERE=installer/mac
 WORK=build/installer-mac
-OUT="dist/JACKPOT-$VERSION-mac.dmg"
+OUT="dist/JACKPOT-Installer-Mac.pkg"
 
 [ -d "$VST3" ] || { echo "No VST3 found at $VST3 — build the plug-in first (./build_mac.sh)."; exit 1; }
 HAS_AU=0; [ -d "$AU" ] && HAS_AU=1
@@ -41,7 +40,7 @@ sign_code() {
 
 echo "== JACKPOT $VERSION mac installer =="
 rm -rf "$WORK"
-mkdir -p "$WORK/root_vst3/Library/Audio/Plug-Ins/VST3" "$WORK/root_au/Library/Audio/Plug-Ins/Components" "$WORK/dmg" dist
+mkdir -p "$WORK/root_vst3/Library/Audio/Plug-Ins/VST3" "$WORK/root_au/Library/Audio/Plug-Ins/Components" "$WORK/root_uninst/Applications/Jackpot Audio" dist
 
 cp -R "$VST3" "$WORK/root_vst3/Library/Audio/Plug-Ins/VST3/"
 sign_code "$WORK/root_vst3/Library/Audio/Plug-Ins/VST3/JACKPOT.vst3"
@@ -49,6 +48,9 @@ if [ $HAS_AU = 1 ]; then
   cp -R "$AU" "$WORK/root_au/Library/Audio/Plug-Ins/Components/"
   sign_code "$WORK/root_au/Library/Audio/Plug-Ins/Components/JACKPOT.component"
 fi
+
+osacompile -o "$WORK/root_uninst/Applications/Jackpot Audio/Uninstall JACKPOT.app" "$HERE/Uninstall JACKPOT.applescript"
+sign_code "$WORK/root_uninst/Applications/Jackpot Audio/Uninstall JACKPOT.app"
 
 chmod +x "$HERE/scripts/postinstall"
 
@@ -68,6 +70,7 @@ build_component() { # kind identifier
 
 build_component vst3 com.jackpotaudio.jackpot.vst3
 [ $HAS_AU = 1 ] && build_component au com.jackpotaudio.jackpot.au
+build_component uninst com.jackpotaudio.jackpot.uninstaller
 
 AU_LINE=""; AU_CHOICE=""; AU_REF=""
 if [ $HAS_AU = 1 ]; then
@@ -91,7 +94,10 @@ cat > "$WORK/distribution.xml" <<EOF
   <choices-outline>
     <line choice="vst3"/>
     $AU_LINE
+    <line choice="uninst"/>
   </choices-outline>
+  <choice id="uninst" visible="false" title="Uninstaller"><pkg-ref id="com.jackpotaudio.jackpot.uninstaller"/></choice>
+  <pkg-ref id="com.jackpotaudio.jackpot.uninstaller" version="$VERSION" onConclusion="none">jackpot_uninst.pkg</pkg-ref>
   <choice id="vst3" title="JACKPOT VST3" description="For Ableton Live and most other hosts. Installs to /Library/Audio/Plug-Ins/VST3."><pkg-ref id="com.jackpotaudio.jackpot.vst3"/></choice>
   $AU_CHOICE
   <pkg-ref id="com.jackpotaudio.jackpot.vst3" version="$VERSION" onConclusion="none">jackpot_vst3.pkg</pkg-ref>
@@ -99,22 +105,12 @@ cat > "$WORK/distribution.xml" <<EOF
 </installer-gui-script>
 EOF
 
-PKG="$WORK/dmg/Install JACKPOT.pkg"
-if [ -n "$INST_ID" ]; then
-  productbuild --distribution "$WORK/distribution.xml" --resources "$HERE/resources" --package-path "$WORK" --sign "$INST_ID" "$PKG"
-else
-  productbuild --distribution "$WORK/distribution.xml" --resources "$HERE/resources" --package-path "$WORK" "$PKG"
-fi
-
-osacompile -o "$WORK/dmg/Uninstall JACKPOT.app" "$HERE/Uninstall JACKPOT.applescript"
-sign_code "$WORK/dmg/Uninstall JACKPOT.app"
-
-cp "$HERE/Read Me.txt" "$WORK/dmg/Read Me.txt"
-
 rm -f "$OUT"
-hdiutil create -volname "JACKPOT $VERSION" -srcfolder "$WORK/dmg" -ov -format UDZO "$OUT" >/dev/null
-
-if [ -n "$APP_ID" ]; then codesign --force --timestamp -s "$APP_ID" "$OUT"; fi
+if [ -n "$INST_ID" ]; then
+  productbuild --distribution "$WORK/distribution.xml" --resources "$HERE/resources" --package-path "$WORK" --sign "$INST_ID" "$OUT"
+else
+  productbuild --distribution "$WORK/distribution.xml" --resources "$HERE/resources" --package-path "$WORK" "$OUT"
+fi
 
 if [ -n "${JACKPOT_NOTARY_PROFILE:-}" ]; then
   xcrun notarytool submit "$OUT" --keychain-profile "$JACKPOT_NOTARY_PROFILE" --wait

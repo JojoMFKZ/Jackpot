@@ -1,6 +1,6 @@
 ; JACKPOT Windows installer (Inno Setup 6)
 ; Build:  iscc /DAppVersion=1.0.0 installer\windows\JACKPOT.iss
-; Output: dist\JACKPOT-<version>-windows-setup.exe
+; Output: dist\JACKPOT-Installer-Windows.exe
 ;
 ; Installs the VST3 to C:\Program Files\Common Files\VST3\JACKPOT.vst3 (where Ableton looks),
 ; registers an uninstaller in Settings > Apps, and adds Start-menu shortcuts.
@@ -30,7 +30,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 MinVersion=10.0
 OutputDir=..\..\dist
-OutputBaseFilename=JACKPOT-{#AppVersion}-windows-setup
+OutputBaseFilename=JACKPOT-Installer-Windows
 SetupIconFile=jackpot.ico
 UninstallDisplayIcon={app}\jackpot.ico
 UninstallDisplayName=JACKPOT (VST3)

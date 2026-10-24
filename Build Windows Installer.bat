@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 REM ===========================================================================
-REM  Double-click me to build JACKPOT-<version>-windows-setup.exe
+REM  Double-click me to build JACKPOT-Installer-Windows.exe
 REM  Installs anything missing (Git, CMake, Visual Studio C++ Build Tools,
 REM  Inno Setup) using winget, which comes with Windows 10/11.
 REM  First run: 20-40 minutes (mostly downloading the C++ tools).
@@ -72,6 +72,6 @@ if not exist "%ISCC%" (echo Inno Setup not found - close this window and run it 
 
 echo.
 echo == Done! ==
-echo dist\JACKPOT-%VERSION%-windows-setup.exe is what you give people.
+echo dist\JACKPOT-Installer-Windows.exe is what you give people.
 start "" "%~dp0dist"
 pause

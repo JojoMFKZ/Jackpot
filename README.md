@@ -1,5 +1,12 @@
 # JACKPOT
 
+### [⬇ Download for Mac](https://github.com/JojoMFKZ/Jackpot/releases/latest/download/JACKPOT-Installer-Mac.pkg) · [⬇ Download for Windows](https://github.com/JojoMFKZ/Jackpot/releases/latest/download/JACKPOT-Installer-Windows.exe)
+
+Open the file and click through. VST3 (+ AU on Mac), works in Ableton Live.
+First time only: Mac may say it can't verify the developer (System Settings >
+Privacy & Security > Open Anyway); Windows may say "protected your PC" (More info >
+Run anyway).
+
 A guitar effect for finding weird, unique sounds without touching a single knob.
 Wander an endless map of sounds, breed the ones you like into families of pixel
 creatures, and keep your favourites.
@@ -29,8 +36,9 @@ and a soft limiter keep wild sounds near your input volume and under 0 dBFS.
 ## Getting installers
 
 See **START HERE.txt**. Short version: push this folder to GitHub and the
-included workflow builds the Mac `.dmg`, the Windows `.exe`, tests the Windows
-install/uninstall, and bundles both into one `JACKPOT-<version>.zip`.
+included workflow builds `JACKPOT-Installer-Mac.pkg` and
+`JACKPOT-Installer-Windows.exe`, test-installs both, and publishes them as the
+latest GitHub Release.
 Or run `Build Mac Installer.command` on a Mac / `Build Windows Installer.bat`
 on Windows.
 
@@ -54,5 +62,5 @@ Source/PluginEditor.*    the interface
 Source/Randomizer.*      per-effect re-roll
 Source/PresetManager.*   save / load / starting points
 tools/RenderTest.cpp     offline tests: map, breeding, locks, state, 300-sound stress test, UI snapshots
-installer/               Mac pkg/dmg + uninstaller, Windows Inno Setup script, artwork
+installer/               Mac pkg + uninstaller, Windows Inno Setup script, artwork
 ```
