@@ -131,12 +131,23 @@ jobs:
           cp "installer/HOW TO INSTALL.txt" "JACKPOT-$V/"
           zip -r "JACKPOT-$V.zip" "JACKPOT-$V"
           echo "ZIP=JACKPOT-$V.zip" >> $GITHUB_ENV
+          echo "VERSION=$V" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         with:
           name: JACKPOT-download
           path: ${{ env.ZIP }}
-      - name: Publish release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish download page (GitHub Release)
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: JACKPOT ${{ env.VERSION }}
+          make_latest: true
           files: ${{ env.ZIP }}
+          body: |
+            **Download `JACKPOT-${{ env.VERSION }}.zip` below.** It contains the Mac installer (.dmg), the Windows installer (.exe) and HOW TO INSTALL.txt.
+
+            - **Mac:** open the .dmg, run *Install JACKPOT.pkg*. If macOS blocks it: System Settings > Privacy & Security > Open Anyway.
+            - **Windows:** run the setup .exe. If SmartScreen appears: More info > Run anyway.
+            - **Ableton:** Settings > Plug-Ins > turn on VST3 system folders > Rescan.
