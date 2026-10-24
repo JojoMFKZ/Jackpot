@@ -1,0 +1,14 @@
+#!/bin/bash
+# Runs as root after the package installs.
+# Clear quarantine flags, make sure the bundles are readable, and nudge macOS to
+# re-scan Audio Units so the AU shows up without a reboot.
+
+for p in "/Library/Audio/Plug-Ins/VST3/JACKPOT.vst3" "/Library/Audio/Plug-Ins/Components/JACKPOT.component"; do
+  if [ -e "$p" ]; then
+    xattr -dr com.apple.quarantine "$p" 2>/dev/null || true
+    chmod -R a+rX "$p" 2>/dev/null || true
+  fi
+done
+
+killall -9 AudioComponentRegistrar >/dev/null 2>&1 || true
+exit 0

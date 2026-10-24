@@ -1,0 +1,142 @@
+name: Build JACKPOT
+
+# Every push builds the Mac and Windows installers (download them from the run's Artifacts).
+# Push a tag like v1.0.0 to also publish them as a GitHub Release people can download.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-14
+    env:
+      MAC_CERTS_P12: ${{ secrets.MAC_CERTS_P12 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get JUCE
+        run: '[ -d JUCE ] || git clone --depth 1 --branch 8.0.4 https://github.com/juce-framework/JUCE.git JUCE'
+
+      - name: Build VST3 + AU (universal)
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --target JACKPOT_VST3 JACKPOT_AU --parallel 4
+
+      - name: Validate AU
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          codesign --force --deep -s - build/JACKPOT_artefacts/Release/AU/JACKPOT.component
+          cp -R build/JACKPOT_artefacts/Release/AU/JACKPOT.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          auval -v aufx Jkp1 Jkpa || echo "::warning::auval did not pass on the runner"
+
+      # Optional: only runs if you've added Apple Developer certificates as repo secrets
+      - name: Import signing certificates
+        if: ${{ env.MAC_CERTS_P12 != '' }}
+        env:
+          MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+        run: |
+          echo "$MAC_CERTS_P12" | base64 --decode > certs.p12
+          security create-keychain -p ci build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import certs.p12 -k build.keychain -P "$MAC_CERTS_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm certs.p12
+
+      - name: Make installer (.dmg with .pkg + uninstaller)
+        env:
+          JACKPOT_SIGN_APP_ID: ${{ secrets.JACKPOT_SIGN_APP_ID }}
+          JACKPOT_SIGN_INSTALLER_ID: ${{ secrets.JACKPOT_SIGN_INSTALLER_ID }}
+          JACKPOT_NOTARY_APPLE_ID: ${{ secrets.JACKPOT_NOTARY_APPLE_ID }}
+          JACKPOT_NOTARY_TEAM_ID: ${{ secrets.JACKPOT_NOTARY_TEAM_ID }}
+          JACKPOT_NOTARY_PASSWORD: ${{ secrets.JACKPOT_NOTARY_PASSWORD }}
+        run: ./installer/mac/make_installer.sh
+
+      - name: Check the package
+        run: |
+          hdiutil attach dist/*.dmg -mountpoint /tmp/jackpot_dmg -nobrowse
+          ls -la /tmp/jackpot_dmg
+          pkgutil --payload-files "/tmp/jackpot_dmg/Install JACKPOT.pkg" | head -20 || true
+          hdiutil detach /tmp/jackpot_dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JACKPOT-mac-installer
+          path: dist/*.dmg
+
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get JUCE
+        shell: bash
+        run: '[ -d JUCE ] || git clone --depth 1 --branch 8.0.4 https://github.com/juce-framework/JUCE.git JUCE'
+
+      - name: Build VST3
+        shell: bash
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --target JACKPOT_VST3 --parallel 4
+
+      - name: Get Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Make installer (setup.exe with uninstaller)
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path CMakeLists.txt -Pattern 'project\(JACKPOT VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer\windows\JACKPOT.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Test install + uninstall
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\*-windows-setup.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          if (-not (Test-Path "$env:CommonProgramFiles\VST3\JACKPOT.vst3\Contents\x86_64-win\JACKPOT.vst3")) { throw "VST3 not installed" }
+          $un = Get-ChildItem "$env:ProgramFiles\Jackpot Audio\JACKPOT\unins*.exe" | Select-Object -First 1
+          Start-Process $un.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          Start-Sleep -Seconds 3
+          if (Test-Path "$env:CommonProgramFiles\VST3\JACKPOT.vst3") { throw "VST3 not removed by uninstaller" }
+          Write-Host "Install and uninstall both worked."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JACKPOT-windows-installer
+          path: dist/*.exe
+
+  # One zip with both installers + instructions: the thing you hand to people.
+  bundle:
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Make JACKPOT zip
+        run: |
+          V=$(sed -n 's/^project(JACKPOT VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          mkdir -p "JACKPOT-$V"
+          cp artifacts/JACKPOT-mac-installer/*.dmg "JACKPOT-$V/"
+          cp artifacts/JACKPOT-windows-installer/*.exe "JACKPOT-$V/"
+          cp "installer/HOW TO INSTALL.txt" "JACKPOT-$V/"
+          zip -r "JACKPOT-$V.zip" "JACKPOT-$V"
+          echo "ZIP=JACKPOT-$V.zip" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JACKPOT-download
+          path: ${{ env.ZIP }}
+      - name: Publish release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP }}

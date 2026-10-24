@@ -1,0 +1,49 @@
+JACKPOT
+=======
+A guitar effect that helps you find weird, unique sounds.
+Wander an endless map, breed sounds like little creatures, keep the ones you love.
+
+-------------------------------------------------------------------------------
+MAC  (macOS 10.15 or newer, Apple Silicon or Intel)
+-------------------------------------------------------------------------------
+1. Quit Ableton.
+2. Open  JACKPOT-x.x.x-mac.dmg  and double-click  "Install JACKPOT.pkg".
+3. If macOS says it can't open it (the plug-in isn't signed by Apple):
+     macOS 15+:  try once, then System Settings > Privacy & Security >
+                 scroll down > "Open Anyway".
+     Older:      right-click the file > Open > Open.
+4. To uninstall later: open the same disk image and run "Uninstall JACKPOT".
+
+-------------------------------------------------------------------------------
+WINDOWS  (Windows 10 or 11, 64-bit)
+-------------------------------------------------------------------------------
+1. Quit Ableton.
+2. Run  JACKPOT-x.x.x-windows-setup.exe
+3. If Windows says "Windows protected your PC": click "More info" > "Run anyway".
+4. To uninstall later: Settings > Apps > JACKPOT (or Start menu > JACKPOT).
+
+-------------------------------------------------------------------------------
+IN ABLETON LIVE
+-------------------------------------------------------------------------------
+Settings/Preferences > Plug-Ins > turn on "Use VST3 Plug-In System Folders"
+> Rescan. Then drag  Plug-Ins > Jackpot Audio > JACKPOT  onto your guitar track.
+
+-------------------------------------------------------------------------------
+HOW TO USE IT
+-------------------------------------------------------------------------------
+- MAP: click or drag anywhere. Every spot is a different sound; nearby spots
+  sound alike. "Teleport" jumps to a brand-new region. Close / Wider / Wild
+  sets how fast things change as you move.
+- FAMILY: the creature is your current sound. Its six kids are variations -
+  click one to make it the new parent. "Breed new litter" deals new kids.
+- MATES: press "Keep" on sounds you like. Kept sounds can be picked as a mate,
+  and the kids inherit traits from both parents.
+- TRAITS: each trait is an effect (spiky hair = fuzz, halo = reverb, ghost
+  trail = delay, third eye = stutter...). Click a trait to lock it and every
+  kid inherits it.
+- UNDER THE HOOD: every real knob, if you ever want them.
+- TRAIL: every sound you've visited. Click one to go back.
+- Map X and Map Y can be automated in Ableton, so your sound can wander
+  across the map during a song.
+
+Kept and saved sounds live in Documents/JACKPOT/Presets.

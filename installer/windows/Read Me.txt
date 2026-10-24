@@ -1,0 +1,19 @@
+JACKPOT - born to mangle
+=======================
+
+USING IT IN ABLETON
+  Options > Preferences > Plug-Ins > turn on "Use VST3 Plug-In System Folders" > Rescan.
+  Then: Plug-Ins > Jackpot Audio > JACKPOT. Drop it on your guitar track.
+
+WHERE THINGS ARE
+  Plug-in:        C:\Program Files\Common Files\VST3\JACKPOT.vst3
+  Saved patches:  Documents\JACKPOT\Presets
+
+UNINSTALL
+  Settings > Apps > JACKPOT > Uninstall
+  (or Start menu > JACKPOT > Uninstall JACKPOT)
+  It asks whether to delete your saved patches too.
+
+IF WINDOWS SAYS "WINDOWS PROTECTED YOUR PC"
+  The installer isn't code-signed, so SmartScreen is cautious.
+  Click "More info", then "Run anyway".

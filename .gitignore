@@ -1,0 +1,7 @@
+build/
+build-clang/
+JUCE/
+render_out/
+dist/
+tools-cache/
+.DS_Store
