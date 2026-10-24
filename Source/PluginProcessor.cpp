@@ -7,7 +7,7 @@ using namespace jackpot;
 namespace
 {
 // stage ids used by the chain
-enum Stage { sFuzz = 1, sCrush, sPitch, sFilter, sTape, sStutter, sDelay, sVerb };
+enum Stage { sFuzz = 1, sCrush, sPitch, sFilter, sTape, sStutter, sDelay, sVerb, sHarm, sReso };
 }
 
 JackpotProcessor::JackpotProcessor()
@@ -71,6 +71,8 @@ void JackpotProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     stutter.prepare (sr, maxB);
     delay.prepare (sr, maxB);
     verb.prepare (sr, maxB);
+    harmony.prepare (sr, maxB);
+    resonator.prepare (sr, maxB);
     dryBuf.setSize (2, maxB);
     scratch.setSize (2, maxB);
     dcL.prepare (sr); dcR.prepare (sr);
@@ -90,6 +92,7 @@ void JackpotProcessor::resetAllDsp()
 {
     fuzz.reset(); crush.reset(); pitch.reset(); filter.reset();
     tape.reset(); stutter.reset(); delay.reset(); verb.reset();
+    harmony.reset(); resonator.reset();
     dcL.reset(); dcR.reset();
     dryPow = wetPow = 0.f; autoGain = 1.f;
 }
@@ -103,7 +106,7 @@ void JackpotProcessor::updateModuleSettings (int n)
     const float driftAmt = val (idx ("drift"));
     const float driftInc = val (idx ("drift_rate")) * (float) n / (float) sr;
 
-    std::array<float, 64> v {};
+    std::array<float, 96> v {};
     for (size_t i = 0; i < specs.size(); ++i)
     {
         auto& s = specs[i];
@@ -147,6 +150,12 @@ void JackpotProcessor::updateModuleSettings (int n)
     verb.size = V ("verb_size"); verb.damp = V ("verb_damp"); verb.width = V ("verb_width");
     verb.shimmer = V ("verb_shimmer"); verb.mix = V ("verb_mix"); verb.freeze = V ("verb_freeze") > 0.5f;
 
+    harmony.shape = V ("harm_shape"); harmony.detune = V ("harm_detune"); harmony.spread = V ("harm_spread");
+    harmony.tone = V ("harm_tone"); harmony.mix = V ("harm_mix");
+
+    resonator.key = V ("reso_key"); resonator.chord = V ("reso_chord"); resonator.reg = V ("reso_octave");
+    resonator.decay = V ("reso_decay"); resonator.bright = V ("reso_bright"); resonator.mix = V ("reso_mix");
+
     for (int m = 1; m <= kNumFx; ++m)
         modOn[(size_t) m] = v[(size_t) onIdx[(size_t) m]] > 0.5f;
 }
@@ -163,6 +172,8 @@ void JackpotProcessor::runModule (int stage, float* L, float* R, int n)
         case sStutter: stutter.process (L, R, n); break;
         case sDelay:   delay.process (L, R, n); break;
         case sVerb:    verb.process (L, R, n); break;
+        case sHarm:    harmony.process (L, R, n); break;
+        case sReso:    resonator.process (L, R, n); break;
         default: break;
     }
 }
@@ -202,10 +213,10 @@ void JackpotProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         dryBuf.copyFrom (0, 0, L, n);
         dryBuf.copyFrom (1, 0, R, n);
 
-        // chain: [4 movable stages in random order] -> tape -> stutter -> delay -> reverb
+        // chain: [4 movable stages in random order] -> harmony -> resonator -> tape -> stutter -> delay -> reverb
         const int order = juce::jlimit (0, 23, (int) val (idx ("order")));
-        std::array<int, 8> chain { perms[(size_t) order][0], perms[(size_t) order][1], perms[(size_t) order][2], perms[(size_t) order][3],
-                                   sTape, sStutter, sDelay, sVerb };
+        std::array<int, 10> chain { perms[(size_t) order][0], perms[(size_t) order][1], perms[(size_t) order][2], perms[(size_t) order][3],
+                                    sHarm, sReso, sTape, sStutter, sDelay, sVerb };
         const float fadeStep = (float) n / (0.03f * (float) sr);
 
         for (int stage : chain)
@@ -420,7 +431,7 @@ std::vector<JackpotProcessor::Entry> JackpotProcessor::trail() const
     auto t = apvts.state.getChildWithName ("TRAIL");
     for (auto e : t)
     {
-        auto g = jackpot::Genome::decode (e["g"].toString());
+        auto g = upgrade (jackpot::Genome::decode (e["g"].toString()));
         if ((int) g.v.size() == numParams()) out.push_back ({ g, evo.name (g) });
     }
     return out;
@@ -432,7 +443,7 @@ std::vector<JackpotProcessor::Entry> JackpotProcessor::kept() const
     auto t = apvts.state.getChildWithName ("KEPT");
     for (auto e : t)
     {
-        auto g = jackpot::Genome::decode (e["g"].toString());
+        auto g = upgrade (jackpot::Genome::decode (e["g"].toString()));
         if ((int) g.v.size() == numParams()) out.push_back ({ g, evo.name (g) });
     }
     return out;
@@ -443,13 +454,21 @@ bool JackpotProcessor::back()
     auto t = listNode (apvts.state, "TRAIL");
     if (t.getNumChildren() == 0) return false;
     auto e = t.getChild (t.getNumChildren() - 1);
-    auto g = jackpot::Genome::decode (e["g"].toString());
+    auto g = upgrade (jackpot::Genome::decode (e["g"].toString()));
     t.removeChild (e, nullptr);
     if ((int) g.v.size() != numParams()) return false;
     evo.apply (g);
     setMeta ("onMap", false);
     ++changeCounter;
     return true;
+}
+
+jackpot::Genome JackpotProcessor::upgrade (jackpot::Genome g) const
+{
+    // sounds saved before an effect existed: the new effect starts at its default (off)
+    for (int i = (int) g.v.size(); i < numParams() && ! g.v.empty(); ++i)
+        g.v.push_back (params[(size_t) i]->getDefaultValue());
+    return g;
 }
 
 static bool sameGenome (const jackpot::Genome& a, const jackpot::Genome& b)
@@ -494,6 +513,20 @@ void JackpotProcessor::loadState (const juce::ValueTree& newState, bool keepLock
         auto mine = apvts.state.getChildWithName (name);
         if (mine.isValid() && ! copy.getChildWithName (name).isValid())
             copy.appendChild (mine.createCopy(), nullptr);
+    }
+    // patches saved before an effect existed: give the new effect its default (off)
+    for (auto& spec : paramSpecs())
+    {
+        bool found = false;
+        for (auto c : copy)
+            if (c.hasType ("PARAM") && c["id"].toString() == spec.id) { found = true; break; }
+        if (! found)
+        {
+            juce::ValueTree pt ("PARAM");
+            pt.setProperty ("id", spec.id, nullptr);
+            pt.setProperty ("value", spec.def, nullptr);
+            copy.appendChild (pt, nullptr);
+        }
     }
     apvts.replaceState (copy);
     syncMap();

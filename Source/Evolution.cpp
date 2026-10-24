@@ -38,6 +38,8 @@ float baseOnProb (Module m)
         case Module::Stutter: return 0.3f;
         case Module::Delay:   return 0.6f;
         case Module::Verb:    return 0.6f;
+        case Module::Harmony: return 0.3f;
+        case Module::Resonator: return 0.28f;
         default:              return 0.5f;
     }
 }
@@ -141,8 +143,13 @@ void Evolution::sanitize (Genome& g, float c, float rollA, float rollB) const
     }
     if (real ("filt_morph") < 0.6f && real ("filt_cutoff") < 250.f && real ("filt_env") < 0.3f)
         setReal ("filt_env", 0.4f + 0.5f * rollB);
-    if (real ("dly_fb") > 0.92f) n ("dly_mix") = juce::jmin (n ("dly_mix"), 0.55f);
-    if (n ("verb_freeze") > 0.5f) n ("verb_mix") = juce::jmin (n ("verb_mix"), 0.5f);
+    // endless repeats and frozen reverb sound like stuck feedback when they show up
+    // by surprise: generated sounds never go there (you can still set them by hand)
+    if (real ("dly_fb") > 0.92f) setReal ("dly_fb", 0.92f);
+    if (real ("dly_fb") > 0.85f) n ("dly_mix") = juce::jmin (n ("dly_mix"), 0.55f);
+    n ("verb_freeze") = 0.f;
+    // resonator ringing on top of a dense mix gets muddy: keep its mix sensible
+    if (real ("reso_decay") > 0.8f) n ("reso_mix") = juce::jmin (n ("reso_mix"), 0.7f);
     if (real ("crush_bits") < 2.5f) setReal ("crush_bits", 3.f + rollB * 6.f);
 
     int onCount = 0;
@@ -250,6 +257,8 @@ Look Evolution::look (const Genome& g) const
     L.stutter = L.on[5];
     L.delay = L.on[6] ? clamp01 (val ("dly_fb") * 0.7 + val ("dly_mix") * 0.5) : 0.f;
     L.verb = L.on[7] ? clamp01 (val ("verb_size") * 0.6 + val ("verb_mix") * 0.6) : 0.f;
+    L.harmony = L.on[8] ? clamp01 (0.35 + val ("harm_mix") * 0.65) : 0.f;
+    L.reso = L.on[9] ? clamp01 (0.3 + val ("reso_mix") * 0.4 + val ("reso_decay") * 0.3) : 0.f;
     L.hue = fract (0.47 * val ("filt_cutoff") + 0.31 * val ("dly_time") + 0.22 * val ("crush_ringfreq") + 0.17 * val ("fuzz_tone") + 0.11 * val ("tape_flutter"));
     L.body = val ("fuzz_tone") * 0.5f + val ("verb_width") * 0.5f;
     L.form = fract (val ("stut_size") * 0.7 + val ("filt_reso") * 0.6 + val ("crush_fold") * 0.3);
@@ -271,6 +280,7 @@ std::vector<Trait> Evolution::traits (const Genome& g) const
     if (! g.valid()) return t;
     auto L = look (g);
     auto val = [&] (const char* id) { return g.v[(size_t) index (id)]; };
+    auto real = [&] (const char* id) { return proc.param (index (id))->convertFrom0to1 (val (id)); };
     if (L.on[0]) t.push_back ({ 0, L.fuzz > 0.6f ? "wild hair" : "spiky hair", "fuzz" });
     if (L.on[1]) t.push_back ({ 1, "glitchy skin", "crush" });
     if (L.on[2]) t.push_back ({ 2, L.pitch >= 0 ? "tall & wide-eyed" : "short & sleepy", "pitch" });
@@ -279,6 +289,10 @@ std::vector<Trait> Evolution::traits (const Genome& g) const
     if (L.on[5]) t.push_back ({ 5, "third eye", "stutter" });
     if (L.on[6]) t.push_back ({ 6, val ("dly_fb") > 0.5f ? "long ghost trail" : "ghost trail", "delay" });
     if (L.on[7]) t.push_back ({ 7, L.verb > 0.6f ? "big halo" : "halo", "reverb" });
+    if (L.on[8]) t.push_back ({ 8, L.harmony > 0.7f ? "tall antennae" : "antennae", "harmony",
+                                juce::String (dsp_harmName (juce::roundToInt (real ("harm_shape")))) });
+    if (L.on[9]) t.push_back ({ 9, L.reso > 0.6f ? "glowing heart" : "heart", "resonator",
+                                juce::String (dsp_noteName (juce::roundToInt (real ("reso_key")))) + " " + dsp_chordName (juce::roundToInt (real ("reso_chord"))) });
     return t;
 }
 
@@ -358,12 +372,30 @@ void draw (juce::Graphics& gr, juce::Rectangle<float> area, const Look& l, int b
             auto& v = g[(size_t) (y * G + x)];
             if ((v == 1 || v == 2) && H (x * 1.3, y * 1.7, l.form * 50.0 + 1.0) < l.crush * 0.12) v = 7;
         }
+    // harmony: a pair of antennae with glowing tips
+    if (l.harmony > 0.05f)
+    {
+        int ax = 10 - juce::jmax (2, hw - 1), len = 2 + (int) std::round (l.harmony * 2.f);
+        for (int k = 0; k < len; ++k) setM (ax - (k + 1) / 2, top - 1 - k, 11, true);
+        setM (ax - (len + 1) / 2, top - 1 - len, 13, true);
+        hairH = juce::jmax (hairH, len + 1);
+    }
+    // resonator: a glowing heart in the chest
+    if (l.reso > 0.05f)
+    {
+        int hy = juce::jlimit (my + 2, bottom - 2, bottom - 3);
+        // pixel heart:  X . . X / X X X X / . X X .
+        setM (8, hy, 12);
+        setM (8, hy + 1, 12); setM (9, hy + 1, 12);
+        setM (9, hy + 2, 12);
+        set (9, hy, 5); set (10, hy, 5);   // dark notch keeps it reading as a heart
+    }
     if (l.verb > 0.05f)
     {
         int hy = juce::jmax (0, top - 3 - hairH), hwid = 2 + (int) std::round (l.verb * 4.f);
         for (int x = 10 - hwid; x <= 9; ++x) setM (x, x == 10 - hwid ? hy + 1 : hy, 8, true);
     }
-    auto solid = [] (int v) { return v != 0 && v != 8 && v != 10; };
+    auto solid = [] (int v) { return v != 0 && v != 8 && v != 10; };   // 11/12 are solid too
     std::array<int, G * G> outline = g;
     for (int y = 0; y < G; ++y)
         for (int x = 0; x < G; ++x)
@@ -380,11 +412,12 @@ void draw (juce::Graphics& gr, juce::Rectangle<float> area, const Look& l, int b
 
     const float hue = l.hue, sat = 0.62f - l.tape * 0.34f, L = 0.60f - l.tape * 0.06f;
     auto hsl = [&] (float h, float s, float li) { return juce::Colour::fromHSL (fract (h), juce::jlimit (0.f, 1.f, s), juce::jlimit (0.f, 1.f, li), alpha); };
-    juce::Colour col[11] = {
+    juce::Colour col[14] = {
         {}, hsl (hue, sat, L), hsl (hue, sat, L - 0.15f), hsl (hue + 160.f / 360.f, 0.72f - l.tape * 0.3f, 0.64f),
         juce::Colour (0xfff4f1e8).withMultipliedAlpha (alpha), juce::Colour (0xff0c0c0e).withMultipliedAlpha (alpha),
         hsl (hue, 0.4f, 0.14f), hsl (hue + 190.f / 360.f, 0.85f, 0.64f), juce::Colour (0xffffd86b).withMultipliedAlpha (alpha * 0.9f),
-        juce::Colour (0xfff4f1e8).withMultipliedAlpha (alpha), hsl (hue, 0.3f, 0.08f)
+        juce::Colour (0xfff4f1e8).withMultipliedAlpha (alpha), hsl (hue, 0.3f, 0.08f),
+        hsl (hue, 0.35f, 0.22f), hsl (hue + 0.5f, 0.9f, 0.68f), hsl (hue + 0.5f, 0.95f, 0.72f)
     };
 
     auto rowShift = [&] (int y)
@@ -414,7 +447,7 @@ void draw (juce::Graphics& gr, juce::Rectangle<float> area, const Look& l, int b
                 }
         }
     }
-    static const int order[] = { 10, 1, 2, 7, 3, 8, 4, 5, 6, 9 };
+    static const int order[] = { 10, 1, 2, 7, 3, 11, 8, 4, 5, 6, 9, 12, 13 };
     for (int v : order)
     {
         gr.setColour (col[v]);

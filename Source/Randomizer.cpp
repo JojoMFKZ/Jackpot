@@ -68,6 +68,8 @@ float baseOnProb (Module m)
         case Module::Stutter: return 0.3f;
         case Module::Delay:   return 0.6f;
         case Module::Verb:    return 0.6f;
+        case Module::Harmony: return 0.3f;
+        case Module::Resonator: return 0.28f;
         default:              return 0.5f;
     }
 }
@@ -218,8 +220,8 @@ void Randomizer::generate (juce::uint64 seed, bool full, int onlyModule)
 
         if (s.kind == Kind::Bool)
         {
-            // freeze is a rare treat
-            if (full) norm[i] = r.chance (0.07f * chaos) ? 1.f : 0.f;
+            // freeze: only by hand (a surprise frozen pad sounds like stuck feedback)
+            if (full) norm[i] = 0.f;
             continue;
         }
 
@@ -253,6 +255,8 @@ void Randomizer::generate (juce::uint64 seed, bool full, int onlyModule)
             at ("filt_env") = toNorm ("filt_env", 0.4f + 0.5f * r.uni());
     }
     if (allowed (Module::Delay) && fromNorm ("dly_fb", at ("dly_fb")) > 0.92f)
+        at ("dly_fb") = toNorm ("dly_fb", 0.92f);
+    if (allowed (Module::Delay) && fromNorm ("dly_fb", at ("dly_fb")) > 0.85f)
         at ("dly_mix") = juce::jmin (at ("dly_mix"), 0.55f);
     if (allowed (Module::Verb) && at ("verb_freeze") > 0.5f)
         at ("verb_mix") = juce::jmin (at ("verb_mix"), 0.5f);

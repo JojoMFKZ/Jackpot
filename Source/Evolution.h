@@ -20,7 +20,7 @@ struct Genome
 struct Look
 {
     std::array<bool, kNumFx> on {};
-    float fuzz = 0, crush = 0, pitch = 0, tape = 0, delay = 0, verb = 0;
+    float fuzz = 0, crush = 0, pitch = 0, tape = 0, delay = 0, verb = 0, harmony = 0, reso = 0;
     int filterType = -1;   // -1 = filter off, 0 LP, 1 BP, 2 HP, 3 notch
     bool stutter = false;
     float hue = 0, body = .5f, form = .5f, form2 = .5f;
@@ -28,9 +28,10 @@ struct Look
 
 struct Trait
 {
-    int module;            // 0..7 (fuzz..reverb)
+    int module;            // 0..9 (fuzz..reverb, harmony, resonator)
     juce::String word;     // "spiky hair"
     juce::String effect;   // "fuzz"
+    juce::String detail {}; // "Major", "E Minor"
 };
 
 // The map, breeding and the creature descriptions.

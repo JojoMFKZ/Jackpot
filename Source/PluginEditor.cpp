@@ -14,7 +14,7 @@ float textWidth (const juce::Font& f, const juce::String& s) { return juce::Glyp
 
 juce::Colour moduleColour (float hue, int module)
 {
-    return juce::Colour::fromHSL (std::fmod (hue + module * 0.105f, 1.f), 0.7f, 0.62f, 1.f);
+    return juce::Colour::fromHSL (std::fmod (hue + module * 0.097f, 1.f), 0.7f, 0.62f, 1.f);
 }
 
 juce::String chainText (JackpotProcessor& p)
@@ -23,8 +23,9 @@ juce::String chainText (JackpotProcessor& p)
     std::array<int, 4> o { 1, 2, 3, 4 };
     int order = (int) p.apvts.getRawParameterValue ("order")->load();
     for (int i = 0; i < order; ++i) std::next_permutation (o.begin(), o.end());
-    return juce::String (names[o[0]]) + U8 (" \xe2\x86\x92 ") + names[o[1]] + U8 (" \xe2\x86\x92 ") + names[o[2]] + U8 (" \xe2\x86\x92 ")
-           + names[o[3]] + U8 (" \xe2\x86\x92 tape \xe2\x86\x92 stutter \xe2\x86\x92 delay \xe2\x86\x92 reverb");
+    const juce::String sep = U8 (" \xe2\x80\xba ");
+    return juce::String (names[o[0]]) + sep + names[o[1]] + sep + names[o[2]] + sep + names[o[3]]
+           + sep + "harmony" + sep + "resonator" + sep + "tape" + sep + "stutter" + sep + "delay" + sep + "reverb";
 }
 
 void sectionLabel (Graphics& g, const juce::String& t, float x, float y)
@@ -446,7 +447,7 @@ void MapView::timerCallback()
 HoodView::HoodView (JackpotProcessor& p) : proc (p)
 {
     auto& specs = paramSpecs();
-    static const char* names[] = { "", "Fuzz", "Crush", "Pitch", "Filter", "Tape", "Stutter", "Delay", "Reverb" };
+    static const char* names[] = { "", "Fuzz", "Crush", "Pitch", "Filter", "Tape", "Stutter", "Delay", "Reverb", "Harmony", "Resonator" };
     for (int m = 1; m <= kNumFx; ++m)
     {
         auto box = std::make_unique<ModuleBox>();
@@ -509,14 +510,15 @@ void HoodView::resized()
     shuffle.setBounds (gx + 6, 52, 96, 24);
     chainArea = { gx + 10, 78, getWidth() - gx - 26, 16 };
 
-    const int top = 106, gap = 8, colW = (getWidth() - 32 - gap) / 2, rowH = (getHeight() - top - 12 - gap * 3) / 4;
+    const int rows = ((int) boxes.size() + 1) / 2;
+    const int top = 102, gap = 6, colW = (getWidth() - 32 - gap) / 2, rowH = (getHeight() - top - 12 - gap * (rows - 1)) / rows;
     for (size_t i = 0; i < boxes.size(); ++i)
     {
         auto& b = *boxes[i];
         int col = (int) i % 2, row = (int) i / 2;
         b.bounds = { 16 + col * (colW + gap), top + row * (rowH + gap), colW, rowH };
-        auto inner = b.bounds.reduced (10, 6);
-        auto head = inner.removeFromTop (20);
+        auto inner = b.bounds.reduced (10, 4);
+        auto head = inner.removeFromTop (18);
         b.on->setBounds (head.removeFromRight (34));
         b.reroll->setBounds (head.removeFromRight (24));
         if (b.freeze) b.freeze->setBounds (head.removeFromRight (40).reduced (4, 1));
@@ -660,11 +662,15 @@ void FamilyView::rebuild (bool newLitter)
     {
         bool locked = proc.isLocked ((Module) (t.module + 1));
         auto* chip = traitChips.add (new Pill (t.word + "  " + t.effect));
+        chip->getProperties().set ("full", t.word + "  " + t.effect);
+        chip->getProperties().set ("short", t.effect);
+        chip->getProperties().set ("detail", t.detail);
         chip->selected = locked;
         chip->accent = colours::text;
         chip->fontSize = 11.5f;
         chip->lockIcon = true;
-        chip->setTooltip (locked ? "Locked: every kid inherits this. Click to unlock." : "Click to lock: every kid inherits this trait.");
+        chip->setTooltip ((t.detail.isNotEmpty() ? t.word + " = " + t.effect + " (" + t.detail + "). " : juce::String())
+                          + (locked ? "Locked: every kid inherits this. Click to unlock." : "Click to lock: every kid inherits this trait."));
         int m = t.module;
         chip->onClick = [this, m]
         {
@@ -685,14 +691,23 @@ void FamilyView::rebuild (bool newLitter)
 
 void FamilyView::layoutTraits()
 {
-    int x = 16, y = 408;
     auto f = Fonts::get().sans (11.5f, 600);
-    for (auto* c : traitChips)
+    // two rows of chips fit; with lots of traits, fall back to just the effect names
+    for (int compact = 0; compact < 2; ++compact)
     {
-        int w = (int) textWidth (f, c->getButtonText()) + 40;
-        if (x + w > getWidth() - 16) { x = 16; y += 36; }
-        c->setBounds (x, y, w, 30);
-        x += w + 6;
+        int x = 16, y = 408, rows = 1;
+        for (auto* c : traitChips)
+        {
+            auto label = c->getProperties()[compact ? "short" : "full"].toString();
+            if (compact && c->getProperties()["detail"].toString().isNotEmpty())
+                label << " " << c->getProperties()["detail"].toString();
+            c->setButtonText (label);
+            int w = (int) textWidth (f, label) + 40;
+            if (x + w > getWidth() - 16) { x = 16; y += 36; ++rows; }
+            c->setBounds (x, y, w, 30);
+            x += w + 6;
+        }
+        if (rows <= 2) break;
     }
 }
 

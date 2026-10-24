@@ -39,8 +39,10 @@ HOW TO USE IT
 - MATES: press "Keep" on sounds you like. Kept sounds can be picked as a mate,
   and the kids inherit traits from both parents.
 - TRAITS: each trait is an effect (spiky hair = fuzz, halo = reverb, ghost
-  trail = delay, third eye = stutter...). Click a trait to lock it and every
-  kid inherits it.
+  trail = delay, third eye = stutter, antennae = harmony, heart = resonator...).
+  Click a trait to lock it and every kid inherits it.
+- MELODIC STUFF: Harmony adds chord voices. Resonator rings in a key - set
+  KEY under the hood to your song's key and it stays there.
 - UNDER THE HOOD: every real knob, if you ever want them.
 - TRAIL: every sound you've visited. Click one to go back.
 - Map X and Map Y can be automated in Ableton, so your sound can wander

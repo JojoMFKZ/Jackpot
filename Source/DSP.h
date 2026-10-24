@@ -704,6 +704,153 @@ private:
 };
 
 // ============================================================================
+//  HARMONY — two extra voices at musical intervals (pitch-shifted copies),
+//  spread across the stereo field. Turns single notes into chords.
+// ============================================================================
+struct HarmonyShape { const char* name; float a, b; };
+inline const std::array<HarmonyShape, 8>& harmonyShapes()
+{
+    static const std::array<HarmonyShape, 8> s { {
+        { "Octaves", 12.f, -12.f }, { "Fifth", 7.f, 12.f }, { "Power", -12.f, 7.f }, { "Major", 4.f, 7.f },
+        { "Minor", 3.f, 7.f }, { "Sus", 5.f, 7.f }, { "Major 7", 4.f, 11.f }, { "Wide", 7.f, 19.f } } };
+    return s;
+}
+
+class Harmony
+{
+public:
+    float shape = 1.f, detune = 0.2f, spread = 0.6f, tone = 0.6f, mix = 0.5f;
+
+    void prepare (double sampleRate, int)
+    {
+        sr = sampleRate;
+        for (auto& v : voice) v.prepare (sr);
+        for (auto& sm : semSm) sm.setTime (0.06f, sr);
+        reset();
+    }
+    void reset()
+    {
+        for (auto& v : voice) v.reset();
+        for (auto& l : lp) l.reset();
+        auto& sh = harmonyShapes()[(size_t) juce::jlimit (0, 7, (int) std::round (shape))];
+        semSm[0].snap (sh.a); semSm[1].snap (sh.b);
+    }
+
+    void process (float* L, float* R, int n)
+    {
+        auto& sh = harmonyShapes()[(size_t) juce::jlimit (0, 7, (int) std::round (shape))];
+        semSm[0].target = sh.a; semSm[1].target = sh.b;
+        const float cents = detune * 18.f;
+        const float lpHz = 1500.f * std::pow (10.f, tone);
+        for (auto& l : lp) l.set (lpHz, sr);
+        const float win = 0.045f * (float) sr;
+        // voice A leans left, voice B leans right
+        const float pa = 0.5f - 0.5f * spread, pb = 0.5f + 0.5f * spread;
+        const float gA = 0.75f, gB = 0.6f;
+        for (int i = 0; i < n; ++i)
+        {
+            const float x = 0.5f * (L[i] + R[i]);
+            float ra = std::pow (2.f, (semSm[0].next() + cents / 100.f) / 12.f);
+            float rb = std::pow (2.f, (semSm[1].next() - cents / 100.f) / 12.f);
+            float a = lp[0].process (voice[0].process (x, ra, win)) * gA;
+            float b = lp[1].process (voice[1].process (x, rb, win)) * gB;
+            float wl = a * std::sqrt (1.f - pa) + b * std::sqrt (1.f - pb);
+            float wr = a * std::sqrt (pa) + b * std::sqrt (pb);
+            L[i] = L[i] * (1.f - 0.3f * mix) + wl * mix;
+            R[i] = R[i] * (1.f - 0.3f * mix) + wr * mix;
+        }
+    }
+
+private:
+    std::array<GrainShifter, 2> voice;
+    std::array<OnePoleLP, 2> lp;
+    std::array<Smooth, 2> semSm;
+    double sr = 44100.0;
+};
+
+// ============================================================================
+//  RESONATOR — four tuned "strings" per side (comb filters with damping),
+//  tuned to a chord in a key. Whatever goes in makes them ring in tune, so
+//  noise, drums, synths and fuzz all come out melodic.
+// ============================================================================
+struct ChordShape { const char* name; std::array<float, 4> semis; };
+inline const std::array<ChordShape, 8>& resonatorChords()
+{
+    static const std::array<ChordShape, 8> c { {
+        { "Root + 5th", { 0.f, 7.f, 12.f, 19.f } }, { "Major", { 0.f, 4.f, 7.f, 12.f } }, { "Minor", { 0.f, 3.f, 7.f, 12.f } },
+        { "Sus2", { 0.f, 2.f, 7.f, 12.f } }, { "Major 7", { 0.f, 4.f, 7.f, 11.f } }, { "Minor 7", { 0.f, 3.f, 7.f, 10.f } },
+        { "Octaves", { -12.f, 0.f, 12.f, 24.f } }, { "Fifths", { 0.f, 7.f, 14.f, 21.f } } } };
+    return c;
+}
+
+class Resonator
+{
+public:
+    float key = 4.f, chord = 0.f, reg = 0.5f, decay = 0.5f, bright = 0.6f, mix = 0.5f;
+
+    void prepare (double sampleRate, int)
+    {
+        sr = sampleRate;
+        for (auto& s : str) s.line.prepare ((int) (sr / 20.0) + 8);
+        inHP[0].set (60.f, sr); inHP[1].set (60.f, sr);
+        reset();
+    }
+    void reset()
+    {
+        for (auto& s : str) { s.line.reset(); s.lp.reset(); s.dc.reset(); s.dc.prepare (sr); s.lenSm.snap (0.f); }
+        for (auto& h : inHP) h.reset();
+        first = true;
+    }
+
+    void process (float* L, float* R, int n)
+    {
+        auto& ch = resonatorChords()[(size_t) juce::jlimit (0, 7, (int) std::round (chord))];
+        const int k = ((int) std::round (key) % 12 + 12) % 12;
+        const int octave = 1 + juce::jlimit (0, 3, (int) std::floor (reg * 3.999f));   // root in octave 1..4
+        const float t60 = 0.15f * std::pow (40.f, decay);                                // 0.15 s .. 6 s
+        const float lpHz = 900.f * std::pow (16.f, bright);
+        for (int s = 0; s < 8; ++s)
+        {
+            auto& st = str[(size_t) s];
+            const float midi = 12.f * (float) (octave + 1) + (float) k + ch.semis[(size_t) (s % 4)] + (s < 4 ? -0.04f : 0.04f);
+            const float f = juce::jlimit (25.f, 3000.f, 440.f * std::pow (2.f, (midi - 69.f) / 12.f));
+            const float len = (float) sr / f;
+            if (first) st.lenSm.snap (len); else st.lenSm.target = len;
+            st.lenSm.setTime (0.03f, sr);
+            st.g = std::pow (0.001f, 1.f / (f * t60));
+            st.in = std::sqrt (1.f - st.g * st.g) * 0.5f;
+            st.lp.set (juce::jmax (lpHz, f * 1.5f), sr);
+        }
+        first = false;
+
+        float* io[2] = { L, R };
+        for (int i = 0; i < n; ++i)
+            for (int c = 0; c < 2; ++c)
+            {
+                const float x = inHP[c].process (io[c][i]);
+                float wet = 0.f;
+                for (int s = c * 4; s < c * 4 + 4; ++s)
+                {
+                    auto& st = str[(size_t) s];
+                    float y = x * st.in + st.g * st.lp.process (st.line.read (st.lenSm.next() - 1.f));
+                    y = soft (y);
+                    st.line.push (y);
+                    wet += st.dc.process (y);
+                }
+                io[c][i] = io[c][i] * (1.f - 0.6f * mix) + wet * 0.55f * mix;
+            }
+    }
+
+private:
+    static float soft (float y) { return std::abs (y) < 1.2f ? y : std::copysign (1.2f + 0.3f * std::tanh ((std::abs (y) - 1.2f) / 0.3f), y); }
+    struct Str { DelayLine line; OnePoleLP lp; DCBlock dc; Smooth lenSm; float g = 0.f, in = 0.f; };
+    std::array<Str, 8> str;
+    std::array<OnePoleHP, 2> inHP;
+    double sr = 44100.0;
+    bool first = true;
+};
+
+// ============================================================================
 //  REVERB — Freeverb core with an octave-up shimmer feedback loop and freeze.
 // ============================================================================
 class Verb
@@ -711,6 +858,7 @@ class Verb
 public:
     float size = 0.6f, damp = 0.5f, width = 1.f, shimmer = 0.f, mix = 0.25f;
     bool freeze = false;
+    float testFb = -1.f; // calibration only
 
     void prepare (double sampleRate, int maxBlock)
     {
@@ -721,7 +869,12 @@ public:
         for (auto& s : sh) s.prepare (sr);
         reset();
     }
-    void reset() { rv.reset(); for (auto& s : sh) s.reset(); shimBuf.clear(); prevN = 0; for (auto& h : hp) h.reset(); }
+    void reset()
+    {
+        rv.reset(); for (auto& s : sh) s.reset(); shimBuf.clear(); prevN = 0;
+        for (auto& h : hp) h.reset(); for (auto& l : lp) l.reset();
+        envFb = 0.f;
+    }
 
     void process (float* L, float* R, int n)
     {
@@ -733,7 +886,17 @@ public:
         p.dryLevel = 0.f;
         p.freezeMode = freeze ? 1.f : 0.f;
         rv.setParameters (p);
-        for (auto& h : hp) h.set (200.f, sr);
+        for (auto& h : hp) h.set (250.f, sr);
+        for (auto& l : lp) l.set (7000.f, sr);
+
+        // Shimmer is a loop: reverb out -> octave up -> back into the reverb.
+        // Big, undamped rooms amplify a lot, so the loop gain comes from a
+        // measured table of the most each size/damping can take without running
+        // away (tools/RenderTest calibrate), with 30% headroom. Tails always die.
+        const float shim = juce::jlimit (0.f, 1.f, shimmer);
+        float fbGain = shim * juce::jmin (0.6f, 0.7f * stableShimmer (size, damp));
+        if (envFb > 0.2f) fbGain *= 0.2f / envFb;               // backstop: never let the loop get loud
+        if (testFb >= 0.f) fbGain = testFb;
 
         float* w0 = wet.getWritePointer (0);
         float* w1 = wet.getWritePointer (1);
@@ -742,23 +905,44 @@ public:
         for (int i = 0; i < n; ++i)
         {
             float a = i < prevN ? s0[i] : 0.f, b = i < prevN ? s1[i] : 0.f;
-            w0[i] = L[i] + a * shimmer;
-            w1[i] = R[i] + b * shimmer;
+            w0[i] = L[i] + a * fbGain;
+            w1[i] = R[i] + b * fbGain;
         }
         rv.processStereo (w0, w1, n);
 
         const float win = 0.08f * (float) sr;
+        float pfb = 0.f;
         for (int i = 0; i < n; ++i)
         {
-            if (shimmer > 0.001f)
+            if (shim > 0.001f)
             {
-                shimBuf.setSample (0, i, hp[0].process (sh[0].process (w0[i], 2.f, win)) * 0.6f);
-                shimBuf.setSample (1, i, hp[1].process (sh[1].process (w1[i], 2.f, win)) * 0.6f);
+                float a = lp[0].process (hp[0].process (sh[0].process (w0[i], 2.f, win)));
+                float b = lp[1].process (hp[1].process (sh[1].process (w1[i], 2.f, win)));
+                shimBuf.setSample (0, i, a);
+                shimBuf.setSample (1, i, b);
+                pfb += (a * a + b * b) * fbGain * fbGain;
             }
             L[i] = L[i] * (1.f - 0.5f * mix) + w0[i] * mix * 0.7f;
             R[i] = R[i] * (1.f - 0.5f * mix) + w1[i] * mix * 0.7f;
         }
-        prevN = shimmer > 0.001f ? n : 0;
+        prevN = shim > 0.001f ? n : 0;
+
+        const float kf = 1.f - std::exp (-(float) n / (0.1f * (float) sr));
+        envFb  += kf * (std::sqrt (pfb / (2.f * (float) n)) - envFb);
+    }
+
+    // largest stable shimmer loop gain, measured at size 0/.25/.5/.75/.9/1 x damp 0/.5/1
+    static float stableShimmer (float size, float damp)
+    {
+        static const float sz[6] = { 0.f, 0.25f, 0.5f, 0.75f, 0.9f, 1.f };
+        static const float t[6][3] = { { 1.178f, 1.491f, 1.711f }, { 0.973f, 1.409f, 1.632f }, { 0.729f, 1.289f, 1.550f },
+                                       { 0.410f, 1.148f, 1.406f }, { 0.249f, 1.052f, 1.280f }, { 0.164f, 0.861f, 0.987f } };
+        size = juce::jlimit (0.f, 1.f, size); damp = juce::jlimit (0.f, 1.f, damp);
+        int i = 0; while (i < 4 && size > sz[i + 1]) ++i;
+        float fs = (size - sz[i]) / (sz[i + 1] - sz[i]);
+        int j = damp < 0.5f ? 0 : 1; float fd = damp < 0.5f ? damp * 2.f : (damp - 0.5f) * 2.f;
+        auto at = [&] (int a, int b) { return t[a][b] + (t[a][b + 1] - t[a][b]) * fd; };
+        return at (i, j) + (at (i + 1, j) - at (i, j)) * fs;
     }
 
 private:
@@ -766,8 +950,10 @@ private:
     juce::AudioBuffer<float> wet;
     std::array<GrainShifter, 2> sh;
     std::array<OnePoleHP, 2> hp;
+    std::array<OnePoleLP, 2> lp;
     juce::AudioBuffer<float> shimBuf;
     int prevN = 0;
+    float envFb = 0.f;
     double sr = 44100.0;
 };
 } // namespace jackpot::dsp

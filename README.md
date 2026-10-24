@@ -19,10 +19,10 @@ creatures, and keep your favourites.
 |---|---|
 | **Map** | Every point is a different patch. Nearby points sound alike, far points don't. The map is endless (Teleport jumps to a new region) and any spot is reproducible. **Close / Wider / Wild** sets how fast sounds change. **Map X / Map Y** are automatable, so a song can wander the map. |
 | **Family** | The current sound is a creature. Its six kids are mutations; click one to make it the parent. Pick a kept sound as a **mate** and kids inherit each effect whole from one parent or the other. |
-| **Traits** | Every effect is a visible trait: spiky hair = fuzz, glitchy skin = crush, tall/short = pitch, mouth shape = filter, faded and wobbly = tape, third eye = stutter, ghost trail = delay, halo = reverb. Click a trait to **lock** it and every kid and map move keeps it. |
+| **Traits** | Every effect is a visible trait: spiky hair = fuzz, glitchy skin = crush, tall/short = pitch, mouth shape = filter, faded and wobbly = tape, third eye = stutter, ghost trail = delay, halo = reverb, antennae = harmony, heart = resonator. Click a trait to **lock** it and every kid and map move keeps it. |
 | **Trail** | Every sound you visit. Click to go back; **Back** steps one. |
 | **Keep** | Remembers the sound for mating and saves it to `Documents/JACKPOT/Presets`. |
-| **Under the hood** | All 58 real parameters, for when you want them. |
+| **Under the hood** | All 71 real parameters, for when you want them. |
 
 ### The effects underneath
 
@@ -30,7 +30,11 @@ Fuzz (two-stage clip, starve, octave), Crush (bits, rate, fold, ring mod),
 Pitch (granular, ±24 st, spiral feedback), Filter (LP/BP/HP/notch morph,
 envelope, LFO), Tape (wow, flutter, saturation, age, dropouts), Stutter (synced
 repeats, reverse, warp), Delay (warble, reverse, self-oscillating feedback),
-Reverb (shimmer, freeze). The first four run in one of 24 orders. Auto level
+Reverb (shimmer, freeze), Harmony (extra voices as octaves, fifths, major,
+minor, sus, maj7 chords), Resonator (tuned strings ringing in a key and chord:
+turns noise, drums, synths and fuzz into notes). The first four run in one of
+24 orders. The resonator's key never changes as you wander, so it stays in
+your song's key. Auto level
 and a soft limiter keep wild sounds near your input volume and under 0 dBFS.
 
 ## Getting installers

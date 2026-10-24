@@ -8,9 +8,9 @@
 // ============================================================================
 namespace jackpot
 {
-enum class Module { Global = 0, Fuzz, Crush, Pitch, Filter, Tape, Stutter, Delay, Verb, Count };
+enum class Module { Global = 0, Fuzz, Crush, Pitch, Filter, Tape, Stutter, Delay, Verb, Harmony, Resonator, Count };
 
-constexpr int kNumFx = 8; // modules that have an on/off + lock
+constexpr int kNumFx = 10; // modules that have an on/off + lock
 
 inline const char* moduleKey (Module m)
 {
@@ -25,6 +25,8 @@ inline const char* moduleKey (Module m)
         case Module::Stutter: return "stut";
         case Module::Delay:   return "dly";
         case Module::Verb:    return "verb";
+        case Module::Harmony: return "harm";
+        case Module::Resonator: return "reso";
         default:              return "";
     }
 }
@@ -134,8 +136,43 @@ inline const std::vector<ParamSpec>& paramSpecs()
         { "verb_shimmer","Reverb Shimmer", "SHIMMER", Module::Verb, Kind::Float, 0.f, 1.f, 0.f, -1.f, "", Rnd::Low },
         { "verb_mix",    "Reverb Mix",     "MIX",     Module::Verb, Kind::Float, 0.f, 1.f, 0.25f, -1.f, "", Rnd::Gentle },
         { "verb_freeze", "Reverb Freeze",  "FREEZE",  Module::Verb, Kind::Bool, 0.f, 1.f, 0.f, -1.f, "", Rnd::Low },
+
+        // (added in 1.1 - new params go at the end so old sessions and map spots keep their sound)
+        // ---------------------------------------------------------- HARMONY
+        { "harm_on",     "Harmony On",     "ON",      Module::Harmony, Kind::Bool, 0.f, 1.f, 0.f, -1.f, "", Rnd::Normal },
+        { "harm_shape",  "Harmony Chord",  "CHORD",   Module::Harmony, Kind::Float, 0.f, 7.f, 1.f, -1.f, "harm", Rnd::Normal },
+        { "harm_detune", "Harmony Detune", "DETUNE",  Module::Harmony, Kind::Float, 0.f, 1.f, 0.2f, -1.f, "", Rnd::Gentle },
+        { "harm_spread", "Harmony Spread", "SPREAD",  Module::Harmony, Kind::Float, 0.f, 1.f, 0.6f, -1.f, "", Rnd::Normal },
+        { "harm_tone",   "Harmony Tone",   "TONE",    Module::Harmony, Kind::Float, 0.f, 1.f, 0.6f, -1.f, "", Rnd::Normal },
+        { "harm_mix",    "Harmony Mix",    "MIX",     Module::Harmony, Kind::Float, 0.f, 1.f, 0.5f, -1.f, "", Rnd::Gentle },
+
+        // ---------------------------------------------------------- RESONATOR
+        { "reso_on",     "Resonator On",     "ON",     Module::Resonator, Kind::Bool, 0.f, 1.f, 0.f, -1.f, "", Rnd::Normal },
+        { "reso_key",    "Resonator Key",    "KEY",    Module::Resonator, Kind::Float, 0.f, 11.f, 4.f, -1.f, "note", Rnd::Never },
+        { "reso_chord",  "Resonator Chord",  "CHORD",  Module::Resonator, Kind::Float, 0.f, 7.f, 0.f, -1.f, "chord", Rnd::Normal },
+        { "reso_octave", "Resonator Octave", "OCTAVE", Module::Resonator, Kind::Float, 0.f, 1.f, 0.4f, -1.f, "oct", Rnd::Normal },
+        { "reso_decay",  "Resonator Decay",  "DECAY",  Module::Resonator, Kind::Float, 0.f, 1.f, 0.5f, -1.f, "", Rnd::Normal },
+        { "reso_bright", "Resonator Bright", "BRIGHT", Module::Resonator, Kind::Float, 0.f, 1.f, 0.6f, -1.f, "", Rnd::Normal },
+        { "reso_mix",    "Resonator Mix",    "MIX",    Module::Resonator, Kind::Float, 0.f, 1.f, 0.5f, -1.f, "", Rnd::Gentle },
     };
     return specs;
+}
+
+// names shown for the stepped Harmony / Resonator knobs (kept here so Params.h has no DSP dependency)
+inline const char* dsp_noteName (int n)
+{
+    static const char* names[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    return names[((n % 12) + 12) % 12];
+}
+inline const char* dsp_harmName (int i)
+{
+    static const char* names[] = { "Octaves", "Fifth", "Power", "Major", "Minor", "Sus", "Major 7", "Wide" };
+    return names[juce::jlimit (0, 7, i)];
+}
+inline const char* dsp_chordName (int i)
+{
+    static const char* names[] = { "Root + 5th", "Major", "Minor", "Sus2", "Major 7", "Minor 7", "Octaves", "Fifths" };
+    return names[juce::jlimit (0, 7, i)];
 }
 
 inline juce::String onParamId (Module m) { return juce::String (moduleKey (m)) + "_on"; }
@@ -182,6 +219,10 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                         return juce::String (names[i]) + ">" + names[i + 1];
                     }
                     if (unit == "bit") return juce::String (v, 1) + " bit";
+                    if (unit == "note") return juce::String (dsp_noteName (juce::roundToInt (v)));
+                    if (unit == "harm") return juce::String (dsp_harmName (juce::roundToInt (v)));
+                    if (unit == "chord") return juce::String (dsp_chordName (juce::roundToInt (v)));
+                    if (unit == "oct") return juce::String (2 + juce::jlimit (0, 3, (int) std::floor (v * 3.999f)));
                     return juce::String (juce::roundToInt (v * 100.f)) + "%";
                 });
             layout.add (std::make_unique<juce::AudioParameterFloat> (pid, s.name, r, s.def, attrs));

@@ -76,7 +76,7 @@ public:
     int numParams() const { return (int) params.size(); }
 
     // UI feedback (audio -> UI), lock free
-    std::array<std::atomic<float>, 64> effectiveNorm {};  // knob position after drift
+    std::array<std::atomic<float>, 96> effectiveNorm {};  // knob position after drift
     static constexpr int kScopeSize = 1024;
     std::array<std::atomic<float>, kScopeSize> scope {};
     std::atomic<int> scopeWrite { 0 };
@@ -92,6 +92,7 @@ private:
     void updateModuleSettings (int numSamples);
     void runModule (int stage, float* L, float* R, int n);
     void resetAllDsp();
+    jackpot::Genome upgrade (jackpot::Genome g) const; // pads genomes saved before new effects existed
 
     std::vector<juce::RangedAudioParameter*> params;
     std::vector<std::atomic<float>*> raw;
@@ -106,6 +107,8 @@ private:
     jackpot::dsp::Stutter stutter;
     jackpot::dsp::Delay delay;
     jackpot::dsp::Verb verb;
+    jackpot::dsp::Harmony harmony;
+    jackpot::dsp::Resonator resonator;
 
     std::array<float, jackpot::kNumFx + 1> modLevel {};   // fade in/out per module
     std::array<bool, jackpot::kNumFx + 1> modOn {};
