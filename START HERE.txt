@@ -1,7 +1,7 @@
-JACKPOT - START HERE
+ODDKIN - START HERE
 ====================
 
-This folder is the complete JACKPOT project. To give JACKPOT to people you
+This folder is the complete ODDKIN project. To give ODDKIN to people you
 need the two installers (Mac .pkg and Windows .exe). A Mac installer can only
 be built on a Mac and a Windows installer only on Windows, so pick one:
 
@@ -12,22 +12,22 @@ OPTION A - GitHub builds both for you (easiest, no PC needed)
 2. Upload this whole folder to it (GitHub Desktop makes this drag-and-drop).
 3. Open the repository's "Actions" tab and wait ~20 minutes.
 4. The Releases page then has two downloads:
-     JACKPOT-Installer-Mac.pkg
-     JACKPOT-Installer-Windows.exe
+     ODDKIN-Installer-Mac.pkg
+     ODDKIN-Installer-Windows.exe
    Link people straight to them (always the newest version):
-     https://github.com/<you>/<repo>/releases/latest/download/JACKPOT-Installer-Mac.pkg
-     https://github.com/<you>/<repo>/releases/latest/download/JACKPOT-Installer-Windows.exe
+     https://github.com/<you>/<repo>/releases/latest/download/ODDKIN-Installer-Mac.pkg
+     https://github.com/<you>/<repo>/releases/latest/download/ODDKIN-Installer-Windows.exe
 
 -------------------------------------------------------------------------------
 OPTION B - build on your own computers
 -------------------------------------------------------------------------------
 Mac:     open Terminal and run
-           cd ~/Downloads/JACKPOT && bash "Build Mac Installer.command"
-         Result: dist/JACKPOT-Installer-Mac.pkg   (~15-20 min the first time)
+           cd ~/Downloads/ODDKIN && bash "Build Mac Installer.command"
+         Result: dist/ODDKIN-Installer-Mac.pkg   (~15-20 min the first time)
 
 Windows: double-click  "Build Windows Installer.bat"
          It installs anything missing by itself (Git, CMake, C++ tools,
-         Inno Setup). Result: dist\JACKPOT-Installer-Windows.exe
+         Inno Setup). Result: dist\ODDKIN-Installer-Windows.exe
          (20-40 min the first time)
 
 Give people the .pkg (Mac) or the .exe (Windows).

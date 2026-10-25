@@ -3,7 +3,12 @@
 # Clear quarantine flags, make sure the bundles are readable, and nudge macOS to
 # re-scan Audio Units so the AU shows up without a reboot.
 
-for p in "/Library/Audio/Plug-Ins/VST3/JACKPOT.vst3" "/Library/Audio/Plug-Ins/Components/JACKPOT.component"; do
+# ODDKIN used to be called JACKPOT. It's the same plug-in underneath (old Ableton
+# sessions open with ODDKIN), so remove the old copy or hosts would list it twice.
+rm -rf "/Library/Audio/Plug-Ins/VST3/JACKPOT.vst3" "/Library/Audio/Plug-Ins/Components/JACKPOT.component" "/Applications/Jackpot Audio" 2>/dev/null || true
+for id in vst3 au uninstaller; do pkgutil --forget "com.jackpotaudio.jackpot.$id" >/dev/null 2>&1 || true; done
+
+for p in "/Library/Audio/Plug-Ins/VST3/ODDKIN.vst3" "/Library/Audio/Plug-Ins/Components/ODDKIN.component"; do
   if [ -e "$p" ]; then
     xattr -dr com.apple.quarantine "$p" 2>/dev/null || true
     chmod -R a+rX "$p" 2>/dev/null || true

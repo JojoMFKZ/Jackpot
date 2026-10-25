@@ -74,8 +74,17 @@ const std::vector<Factory>& factory()
 
 juce::File PresetManager::folder()
 {
-    auto f = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("JACKPOT").getChildFile ("Presets");
-    f.createDirectory();
+    auto docs = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory);
+    auto f = docs.getChildFile ("ODDKIN").getChildFile ("Presets");
+    if (! f.isDirectory())
+    {
+        f.createDirectory();
+        // carry over presets saved when the plugin was called JACKPOT (the old folder is left alone)
+        auto old = docs.getChildFile ("JACKPOT").getChildFile ("Presets");
+        if (old.isDirectory())
+            for (auto& p : old.findChildFiles (juce::File::findFiles, false, juce::String ("*") + oldExtension))
+                p.copyFileTo (f.getChildFile (p.getFileNameWithoutExtension() + extension));
+    }
     return f;
 }
 

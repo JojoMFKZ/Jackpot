@@ -878,7 +878,7 @@ void JackpotEditor::Canvas::paint (Graphics& g)
     g.setColour (colours::text);
     auto wf = Fonts::get().sans (12.f, 800);
     float x = 20.f;
-    for (auto ch : juce::String ("JACKPOT"))
+    for (auto ch : juce::String ("ODDKIN"))
     {
         auto s = juce::String::charToString (ch);
         g.setFont (wf);
@@ -1050,7 +1050,7 @@ void JackpotEditor::askToSave()
         auto name = w->getTextEditorContents ("name").trim();
         if (name.isEmpty()) return;
         if (! safe->proc.presets.save (name))
-            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Couldn't save", "Check that Documents/JACKPOT/Presets is writable.");
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Couldn't save", "Check that Documents/ODDKIN/Presets is writable.");
         safe->refreshAll();
     }), true);
 }

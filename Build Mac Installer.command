@@ -1,6 +1,6 @@
 #!/bin/bash
 # Double-click me (or run: bash "Build Mac Installer.command")
-# Builds JACKPOT and makes dist/JACKPOT-Installer-Mac.pkg.
+# Builds ODDKIN and makes dist/ODDKIN-Installer-Mac.pkg.
 # First run takes ~15-20 minutes. Nothing is installed system-wide except
 # Apple's free Command Line Tools if you don't already have them.
 cd "$(dirname "$0")" || exit 1
@@ -50,9 +50,9 @@ else
 fi
 
 # 4. Build (universal: runs on Intel + Apple Silicon Macs)
-say_step "Building JACKPOT (this is the long part)"
+say_step "Building ODDKIN (this is the long part)"
 "$CMAKE" -B build -DCMAKE_BUILD_TYPE=Release
-"$CMAKE" --build build --config Release --target JACKPOT_VST3 JACKPOT_AU --parallel "$(sysctl -n hw.ncpu)"
+"$CMAKE" --build build --config Release --target ODDKIN_VST3 ODDKIN_AU --parallel "$(sysctl -n hw.ncpu)"
 
 # 5. Installer
 say_step "Making the installer"
@@ -64,5 +64,5 @@ ls -1 dist/*.pkg
 open dist
 echo ""
 echo "The .pkg in the window that just opened is what you give people."
-echo "It contains 'Install JACKPOT.pkg' and 'Uninstall JACKPOT'."
+echo "It contains 'Install ODDKIN.pkg' and 'Uninstall ODDKIN'."
 read -r -p "Press Return to close." _

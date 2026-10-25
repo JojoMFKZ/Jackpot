@@ -14,7 +14,7 @@ JackpotProcessor::JackpotProcessor()
     : AudioProcessor (BusesProperties()
                           .withInput ("Input", juce::AudioChannelSet::stereo(), true)
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "JACKPOT", createLayout())
+      apvts (*this, nullptr, "JACKPOT", createLayout())   // internal state name: kept from before the rename so old sessions and presets load
 {
     auto& specs = paramSpecs();
     jassert (specs.size() <= effectiveNorm.size());
@@ -493,7 +493,7 @@ void JackpotProcessor::keepCurrent()
     e.setProperty ("g", evo.current().encode(), nullptr);
     t.appendChild (e, nullptr);
     while (t.getNumChildren() > 24) t.removeChild (0, nullptr);
-    presets.save (getPatchName());   // also lands in Documents/JACKPOT/Presets
+    presets.save (getPatchName());   // also lands in Documents/ODDKIN/Presets
     ++changeCounter;
 }
 
@@ -552,7 +552,7 @@ juce::AudioProcessorEditor* JackpotProcessor::createEditor()
     return new JackpotEditor (*this);
 }
 
-#if ! JACKPOT_TEST_BUILD
+#if ! ODDKIN_TEST_BUILD
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new JackpotProcessor();

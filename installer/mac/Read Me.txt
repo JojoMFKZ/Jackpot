@@ -1,21 +1,21 @@
-JACKPOT — born to mangle
+ODDKIN — born to mangle
 =======================
 
 INSTALL
   1. Quit Ableton.
-  2. Double-click "Install JACKPOT.pkg" and follow the steps.
+  2. Double-click "Install ODDKIN.pkg" and follow the steps.
   3. Open Ableton > Settings > Plug-Ins, turn on "Use VST3 Plug-In System Folders", click Rescan.
-  4. Plug-Ins > Jackpot Audio > JACKPOT. Drop it on your guitar track.
+  4. Plug-Ins > Oddkin > ODDKIN. Drop it on your guitar track.
 
 UNINSTALL
-  Double-click "Uninstall JACKPOT". It asks whether to keep your saved patches
-  (Documents/JACKPOT) and asks for your Mac password to remove the plug-ins.
+  Double-click "Uninstall ODDKIN". It asks whether to keep your saved patches
+  (Documents/ODDKIN) and asks for your Mac password to remove the plug-ins.
 
 IF macOS SAYS IT CAN'T OPEN THE INSTALLER
-  JACKPOT isn't signed by an Apple-registered developer, so macOS is cautious.
+  ODDKIN isn't signed by an Apple-registered developer, so macOS is cautious.
   - macOS 15 (Sequoia) and newer: try to open it once, then go to
     System Settings > Privacy & Security, scroll down and click "Open Anyway".
   - Older macOS: right-click (or Control-click) the file and choose Open, then Open again.
-  Do the same for "Uninstall JACKPOT" the first time you use it.
+  Do the same for "Uninstall ODDKIN" the first time you use it.
 
 Works on macOS 10.15 or newer, Apple Silicon and Intel.

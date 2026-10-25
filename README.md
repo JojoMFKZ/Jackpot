@@ -1,6 +1,8 @@
-# JACKPOT
+# ODDKIN
 
-### [⬇ Download for Mac](https://github.com/JojoMFKZ/Jackpot/releases/latest/download/JACKPOT-Installer-Mac.pkg) · [⬇ Download for Windows](https://github.com/JojoMFKZ/Jackpot/releases/latest/download/JACKPOT-Installer-Windows.exe)
+*Formerly JACKPOT. Same plug-in: old sessions and presets open in ODDKIN, and installing it removes the old JACKPOT copy.*
+
+### [⬇ Download for Mac](https://github.com/JojoMFKZ/Jackpot/releases/latest/download/ODDKIN-Installer-Mac.pkg) · [⬇ Download for Windows](https://github.com/JojoMFKZ/Jackpot/releases/latest/download/ODDKIN-Installer-Windows.exe)
 
 Open the file and click through. VST3 (+ AU on Mac), works in Ableton Live.
 First time only: Mac may say it can't verify the developer (System Settings >
@@ -11,7 +13,7 @@ A guitar effect for finding weird, unique sounds without touching a single knob.
 Wander an endless map of sounds, breed the ones you like into families of pixel
 creatures, and keep your favourites.
 
-![JACKPOT](docs/ui.png)
+![ODDKIN](docs/ui.png)
 
 ## How it works
 
@@ -21,7 +23,7 @@ creatures, and keep your favourites.
 | **Family** | The current sound is a creature. Its six kids are mutations; click one to make it the parent. Pick a kept sound as a **mate** and kids inherit each effect whole from one parent or the other. |
 | **Traits** | Every effect is a visible trait: spiky hair = fuzz, glitchy skin = crush, tall/short = pitch, mouth shape = filter, faded and wobbly = tape, third eye = stutter, ghost trail = delay, halo = reverb, antennae = harmony, heart = resonator. Click a trait to **lock** it and every kid and map move keeps it. |
 | **Trail** | Every sound you visit. Click to go back; **Back** steps one. |
-| **Keep** | Remembers the sound for mating and saves it to `Documents/JACKPOT/Presets`. |
+| **Keep** | Remembers the sound for mating and saves it to `Documents/ODDKIN/Presets`. |
 | **Under the hood** | All 71 real parameters, for when you want them. |
 
 ### The effects underneath
@@ -40,8 +42,8 @@ and a soft limiter keep wild sounds near your input volume and under 0 dBFS.
 ## Getting installers
 
 See **START HERE.txt**. Short version: push this folder to GitHub and the
-included workflow builds `JACKPOT-Installer-Mac.pkg` and
-`JACKPOT-Installer-Windows.exe`, test-installs both, and publishes them as the
+included workflow builds `ODDKIN-Installer-Mac.pkg` and
+`ODDKIN-Installer-Windows.exe`, test-installs both, and publishes them as the
 latest GitHub Release.
 Or run `Build Mac Installer.command` on a Mac / `Build Windows Installer.bat`
 on Windows.
@@ -52,8 +54,8 @@ Unsigned installers show a one-time security warning. To remove it on Mac you
 need an Apple Developer account; add these repository secrets and the build
 signs and notarizes automatically: `MAC_CERTS_P12` (base64 .p12 with your
 *Developer ID Application* and *Developer ID Installer* certificates),
-`MAC_CERTS_PASSWORD`, `JACKPOT_SIGN_APP_ID`, `JACKPOT_SIGN_INSTALLER_ID`,
-`JACKPOT_NOTARY_APPLE_ID`, `JACKPOT_NOTARY_TEAM_ID`, `JACKPOT_NOTARY_PASSWORD`.
+`MAC_CERTS_PASSWORD`, `ODDKIN_SIGN_APP_ID`, `ODDKIN_SIGN_INSTALLER_ID`,
+`ODDKIN_NOTARY_APPLE_ID`, `ODDKIN_NOTARY_TEAM_ID`, `ODDKIN_NOTARY_PASSWORD`.
 
 ## Project layout
 

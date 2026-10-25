@@ -1,4 +1,4 @@
-JACKPOT
+ODDKIN
 =======
 A guitar effect that helps you find weird, unique sounds.
 Wander an endless map, breed sounds like little creatures, keep the ones you love.
@@ -7,26 +7,26 @@ Wander an endless map, breed sounds like little creatures, keep the ones you lov
 MAC  (macOS 10.15 or newer, Apple Silicon or Intel)
 -------------------------------------------------------------------------------
 1. Quit Ableton.
-2. Double-click  JACKPOT-Installer-Mac.pkg  and click through.
+2. Double-click  ODDKIN-Installer-Mac.pkg  and click through.
 3. If macOS says it can't open it (the plug-in isn't signed by Apple):
      macOS 15+:  try once, then System Settings > Privacy & Security >
                  scroll down > "Open Anyway".
      Older:      right-click the file > Open > Open.
-4. To uninstall later: Applications > Jackpot Audio > Uninstall JACKPOT.
+4. To uninstall later: Applications > Oddkin > Uninstall ODDKIN.
 
 -------------------------------------------------------------------------------
 WINDOWS  (Windows 10 or 11, 64-bit)
 -------------------------------------------------------------------------------
 1. Quit Ableton.
-2. Double-click  JACKPOT-Installer-Windows.exe  and click through.
+2. Double-click  ODDKIN-Installer-Windows.exe  and click through.
 3. If Windows says "Windows protected your PC": click "More info" > "Run anyway".
-4. To uninstall later: Settings > Apps > JACKPOT (or Start menu > JACKPOT).
+4. To uninstall later: Settings > Apps > ODDKIN (or Start menu > ODDKIN).
 
 -------------------------------------------------------------------------------
 IN ABLETON LIVE
 -------------------------------------------------------------------------------
 Settings/Preferences > Plug-Ins > turn on "Use VST3 Plug-In System Folders"
-> Rescan. Then drag  Plug-Ins > Jackpot Audio > JACKPOT  onto your guitar track.
+> Rescan. Then drag  Plug-Ins > Oddkin > ODDKIN  onto your guitar track.
 
 -------------------------------------------------------------------------------
 HOW TO USE IT
@@ -48,4 +48,4 @@ HOW TO USE IT
 - Map X and Map Y can be automated in Ableton, so your sound can wander
   across the map during a song.
 
-Kept and saved sounds live in Documents/JACKPOT/Presets.
+Kept and saved sounds live in Documents/ODDKIN/Presets.

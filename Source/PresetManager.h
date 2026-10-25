@@ -7,8 +7,9 @@ class JackpotProcessor;
 namespace jackpot
 {
 // Saves / loads patches as small XML files in
-//   macOS:   ~/Documents/JACKPOT/Presets
-//   Windows: Documents\JACKPOT\Presets
+//   macOS:   ~/Documents/ODDKIN/Presets
+//   Windows: Documents\ODDKIN\Presets
+// (presets from when the plugin was called JACKPOT are copied over on first run)
 // plus a handful of factory patches compiled into the plugin.
 class PresetManager
 {
@@ -16,7 +17,8 @@ public:
     explicit PresetManager (JackpotProcessor& p) : proc (p) {}
 
     static juce::File folder();
-    static constexpr const char* extension = ".jackpot";
+    static constexpr const char* extension = ".oddkin";
+    static constexpr const char* oldExtension = ".jackpot";  // presets saved before the rename
 
     juce::Array<juce::File> userPresets() const;
     juce::StringArray factoryNames() const;

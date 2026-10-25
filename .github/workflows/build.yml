@@ -1,11 +1,11 @@
-name: Build JACKPOT
+name: Build ODDKIN
 
 # Every push builds the Mac and Windows installers (download them from the run's Artifacts).
 # Pushes to main also publish them as a GitHub Release with two downloads:
-#   JACKPOT-Installer-Mac.pkg  and  JACKPOT-Installer-Windows.exe
+#   ODDKIN-Installer-Mac.pkg  and  ODDKIN-Installer-Windows.exe
 # These always point at the newest version:
-#   https://github.com/<you>/<repo>/releases/latest/download/JACKPOT-Installer-Mac.pkg
-#   https://github.com/<you>/<repo>/releases/latest/download/JACKPOT-Installer-Windows.exe
+#   https://github.com/<you>/<repo>/releases/latest/download/ODDKIN-Installer-Mac.pkg
+#   https://github.com/<you>/<repo>/releases/latest/download/ODDKIN-Installer-Windows.exe
 on:
   push:
   workflow_dispatch:
@@ -27,13 +27,13 @@ jobs:
       - name: Build VST3 + AU (universal)
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --target JACKPOT_VST3 JACKPOT_AU --parallel 4
+          cmake --build build --config Release --target ODDKIN_VST3 ODDKIN_AU --parallel 4
 
       - name: Validate AU
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
-          codesign --force --deep -s - build/JACKPOT_artefacts/Release/AU/JACKPOT.component
-          cp -R build/JACKPOT_artefacts/Release/AU/JACKPOT.component ~/Library/Audio/Plug-Ins/Components/
+          codesign --force --deep -s - build/ODDKIN_artefacts/Release/AU/ODDKIN.component
+          cp -R build/ODDKIN_artefacts/Release/AU/ODDKIN.component ~/Library/Audio/Plug-Ins/Components/
           killall -9 AudioComponentRegistrar || true
           auval -v aufx Jkp1 Jkpa || echo "::warning::auval did not pass on the runner"
 
@@ -53,26 +53,33 @@ jobs:
 
       - name: Make installer (.pkg, installs plug-ins + uninstaller)
         env:
-          JACKPOT_SIGN_APP_ID: ${{ secrets.JACKPOT_SIGN_APP_ID }}
-          JACKPOT_SIGN_INSTALLER_ID: ${{ secrets.JACKPOT_SIGN_INSTALLER_ID }}
-          JACKPOT_NOTARY_APPLE_ID: ${{ secrets.JACKPOT_NOTARY_APPLE_ID }}
-          JACKPOT_NOTARY_TEAM_ID: ${{ secrets.JACKPOT_NOTARY_TEAM_ID }}
-          JACKPOT_NOTARY_PASSWORD: ${{ secrets.JACKPOT_NOTARY_PASSWORD }}
+          ODDKIN_SIGN_APP_ID: ${{ secrets.ODDKIN_SIGN_APP_ID }}
+          ODDKIN_SIGN_INSTALLER_ID: ${{ secrets.ODDKIN_SIGN_INSTALLER_ID }}
+          ODDKIN_NOTARY_APPLE_ID: ${{ secrets.ODDKIN_NOTARY_APPLE_ID }}
+          ODDKIN_NOTARY_TEAM_ID: ${{ secrets.ODDKIN_NOTARY_TEAM_ID }}
+          ODDKIN_NOTARY_PASSWORD: ${{ secrets.ODDKIN_NOTARY_PASSWORD }}
         run: ./installer/mac/make_installer.sh
 
       - name: Check the package
         run: |
           ls -la dist
-          pkgutil --payload-files dist/JACKPOT-Installer-Mac.pkg | head -30
-          sudo installer -pkg dist/JACKPOT-Installer-Mac.pkg -target /
+          pkgutil --payload-files dist/ODDKIN-Installer-Mac.pkg | head -30
+          # upgrade from the last JACKPOT release: the old copy must be gone afterwards
+          curl -fsSL -o /tmp/old.pkg https://github.com/JojoMFKZ/Jackpot/releases/download/v1.1.0/JACKPOT-Installer-Mac.pkg
+          sudo installer -pkg /tmp/old.pkg -target /
           test -d /Library/Audio/Plug-Ins/VST3/JACKPOT.vst3
-          test -d /Library/Audio/Plug-Ins/Components/JACKPOT.component
-          test -d "/Applications/Jackpot Audio/Uninstall JACKPOT.app"
-          echo "Mac install worked."
+          sudo installer -pkg dist/ODDKIN-Installer-Mac.pkg -target /
+          test ! -e /Library/Audio/Plug-Ins/VST3/JACKPOT.vst3
+          test ! -e /Library/Audio/Plug-Ins/Components/JACKPOT.component
+          test ! -e "/Applications/Jackpot Audio"
+          test -d /Library/Audio/Plug-Ins/VST3/ODDKIN.vst3
+          test -d /Library/Audio/Plug-Ins/Components/ODDKIN.component
+          test -d "/Applications/Oddkin/Uninstall ODDKIN.app"
+          echo "Mac install (and upgrade from JACKPOT) worked."
 
       - uses: actions/upload-artifact@v4
         with:
-          name: JACKPOT-mac-installer
+          name: ODDKIN-mac-installer
           path: dist/*.pkg
 
 
@@ -89,7 +96,7 @@ jobs:
         shell: bash
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --target JACKPOT_VST3 --parallel 4
+          cmake --build build --config Release --target ODDKIN_VST3 --parallel 4
 
       - name: Get Inno Setup
         shell: pwsh
@@ -99,25 +106,31 @@ jobs:
       - name: Make installer (setup.exe with uninstaller)
         shell: pwsh
         run: |
-          $v = (Select-String -Path CMakeLists.txt -Pattern 'project\(JACKPOT VERSION ([0-9.]+)').Matches[0].Groups[1].Value
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer\windows\JACKPOT.iss
+          $v = (Select-String -Path CMakeLists.txt -Pattern 'project\(ODDKIN VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer\windows\ODDKIN.iss
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Test install + uninstall
         shell: pwsh
         run: |
-          $setup = Get-ChildItem dist\JACKPOT-Installer-Windows.exe | Select-Object -First 1
+          # upgrade from the last JACKPOT release: the old copy must be gone afterwards
+          Invoke-WebRequest -Uri https://github.com/JojoMFKZ/Jackpot/releases/download/v1.1.0/JACKPOT-Installer-Windows.exe -OutFile old.exe
+          Start-Process .\old.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          if (-not (Test-Path "$env:CommonProgramFiles\VST3\JACKPOT.vst3")) { throw "old JACKPOT didn't install" }
+          $setup = Get-ChildItem dist\ODDKIN-Installer-Windows.exe | Select-Object -First 1
           Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
-          if (-not (Test-Path "$env:CommonProgramFiles\VST3\JACKPOT.vst3\Contents\x86_64-win\JACKPOT.vst3")) { throw "VST3 not installed" }
-          $un = Get-ChildItem "$env:ProgramFiles\Jackpot Audio\JACKPOT\unins*.exe" | Select-Object -First 1
+          if (Test-Path "$env:CommonProgramFiles\VST3\JACKPOT.vst3") { throw "old JACKPOT.vst3 still there after upgrade" }
+          if (Test-Path "$env:ProgramFiles\Jackpot Audio") { throw "old program folder still there after upgrade" }
+          if (-not (Test-Path "$env:CommonProgramFiles\VST3\ODDKIN.vst3\Contents\x86_64-win\ODDKIN.vst3")) { throw "VST3 not installed" }
+          $un = Get-ChildItem "$env:ProgramFiles\Oddkin\ODDKIN\unins*.exe" | Select-Object -First 1
           Start-Process $un.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           Start-Sleep -Seconds 3
-          if (Test-Path "$env:CommonProgramFiles\VST3\JACKPOT.vst3") { throw "VST3 not removed by uninstaller" }
+          if (Test-Path "$env:CommonProgramFiles\VST3\ODDKIN.vst3") { throw "VST3 not removed by uninstaller" }
           Write-Host "Install and uninstall both worked."
 
       - uses: actions/upload-artifact@v4
         with:
-          name: JACKPOT-windows-installer
+          name: ODDKIN-windows-installer
           path: dist/*.exe
 
   # Publish the two installers as the download page (GitHub Release).
@@ -132,26 +145,26 @@ jobs:
           path: artifacts
       - name: Collect installers
         run: |
-          V=$(sed -n 's/^project(JACKPOT VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          V=$(sed -n 's/^project(ODDKIN VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           echo "VERSION=$V" >> $GITHUB_ENV
           mkdir out
-          cp artifacts/JACKPOT-mac-installer/JACKPOT-Installer-Mac.pkg out/
-          cp artifacts/JACKPOT-windows-installer/JACKPOT-Installer-Windows.exe out/
+          cp artifacts/ODDKIN-mac-installer/ODDKIN-Installer-Mac.pkg out/
+          cp artifacts/ODDKIN-windows-installer/ODDKIN-Installer-Windows.exe out/
           ls -la out
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION }}
           target_commitish: ${{ github.sha }}
-          name: JACKPOT ${{ env.VERSION }}
+          name: ODDKIN ${{ env.VERSION }}
           make_latest: true
           files: |
-            out/JACKPOT-Installer-Mac.pkg
-            out/JACKPOT-Installer-Windows.exe
+            out/ODDKIN-Installer-Mac.pkg
+            out/ODDKIN-Installer-Windows.exe
           body: |
             ## Download
 
-            ### [⬇ Mac](https://github.com/${{ github.repository }}/releases/latest/download/JACKPOT-Installer-Mac.pkg)  ·  [⬇ Windows](https://github.com/${{ github.repository }}/releases/latest/download/JACKPOT-Installer-Windows.exe)
+            ### [⬇ Mac](https://github.com/${{ github.repository }}/releases/latest/download/ODDKIN-Installer-Mac.pkg)  ·  [⬇ Windows](https://github.com/${{ github.repository }}/releases/latest/download/ODDKIN-Installer-Windows.exe)
 
             Open the file you downloaded and click through. That's it.
 
@@ -159,4 +172,4 @@ jobs:
             - **Windows "protected your PC"?** **More info** > **Run anyway**.
             - **Ableton:** Settings > Plug-Ins > turn on **Use VST3 Plug-In System Folders** > **Rescan**.
 
-            Uninstall: Mac: Applications > Jackpot Audio > Uninstall JACKPOT. Windows: Settings > Apps > JACKPOT.
+            Uninstall: Mac: Applications > Oddkin > Uninstall ODDKIN. Windows: Settings > Apps > ODDKIN.

@@ -1,13 +1,13 @@
 @echo off
 setlocal EnableDelayedExpansion
 REM ===========================================================================
-REM  Double-click me to build JACKPOT-Installer-Windows.exe
+REM  Double-click me to build ODDKIN-Installer-Windows.exe
 REM  Installs anything missing (Git, CMake, Visual Studio C++ Build Tools,
 REM  Inno Setup) using winget, which comes with Windows 10/11.
 REM  First run: 20-40 minutes (mostly downloading the C++ tools).
 REM ===========================================================================
 cd /d "%~dp0"
-title Building JACKPOT
+title Building ODDKIN
 
 where winget >nul 2>nul || (
   echo winget is missing. Update "App Installer" from the Microsoft Store, then run this again.
@@ -59,19 +59,19 @@ if not exist JUCE (
 )
 
 echo.
-echo == Building JACKPOT (VST3) ==
+echo == Building ODDKIN (VST3) ==
 cmake -B build -DCMAKE_BUILD_TYPE=Release || (pause & exit /b 1)
-cmake --build build --config Release --target JACKPOT_VST3 --parallel || (pause & exit /b 1)
+cmake --build build --config Release --target ODDKIN_VST3 --parallel || (pause & exit /b 1)
 
 echo.
 echo == Making the installer ==
 set VERSION=1.0.0
-for /f "tokens=3" %%v in ('findstr /b /c:"project(JACKPOT VERSION" CMakeLists.txt') do set VERSION=%%v
+for /f "tokens=3" %%v in ('findstr /b /c:"project(ODDKIN VERSION" CMakeLists.txt') do set VERSION=%%v
 if not exist "%ISCC%" (echo Inno Setup not found - close this window and run it again. & pause & exit /b 1)
-"%ISCC%" /Q /DAppVersion=%VERSION% installer\windows\JACKPOT.iss || (pause & exit /b 1)
+"%ISCC%" /Q /DAppVersion=%VERSION% installer\windows\ODDKIN.iss || (pause & exit /b 1)
 
 echo.
 echo == Done! ==
-echo dist\JACKPOT-Installer-Windows.exe is what you give people.
+echo dist\ODDKIN-Installer-Windows.exe is what you give people.
 start "" "%~dp0dist"
 pause
