@@ -38,6 +38,8 @@ JackpotProcessor::JackpotProcessor()
     setMeta ("onMap", true);
     setMeta ("gen", 1);
     syncMap();
+    for (auto* prm : params) prm->addListener (this);
+    resetUndo();
     startTimerHz (30);
     setMeta ("seed", "----");
     setMeta ("starSign", "Bat's Wing");
@@ -73,6 +75,7 @@ void JackpotProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     verb.prepare (sr, maxB);
     harmony.prepare (sr, maxB);
     resonator.prepare (sr, maxB);
+    gate.prepare (sr);
     dryBuf.setSize (2, maxB);
     scratch.setSize (2, maxB);
     dcL.prepare (sr); dcR.prepare (sr);
@@ -92,7 +95,7 @@ void JackpotProcessor::resetAllDsp()
 {
     fuzz.reset(); crush.reset(); pitch.reset(); filter.reset();
     tape.reset(); stutter.reset(); delay.reset(); verb.reset();
-    harmony.reset(); resonator.reset();
+    harmony.reset(); resonator.reset(); gate.reset();
     dcL.reset(); dcR.reset();
     dryPow = wetPow = 0.f; autoGain = 1.f;
 }
@@ -210,6 +213,10 @@ void JackpotProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
             L[i] *= inGainSm; R[i] *= inGainSm;
             inPeak = juce::jmax (inPeak, std::abs (L[i]));
         }
+        // noise gate on the input (dry included), before anything can make the hum bigger
+        gate.thresholdDb = val (idx ("gate"));
+        gate.process (L, R, n);
+
         dryBuf.copyFrom (0, 0, L, n);
         dryBuf.copyFrom (1, 0, R, n);
 
@@ -335,7 +342,120 @@ void JackpotProcessor::setLocked (Module m, bool locked)
 }
 
 void JackpotProcessor::pushHistory() { pushTrail(); }
-bool JackpotProcessor::undo() { return back(); }
+
+// ---------------------------------------------------------------------------
+//  Undo / redo + A/B. A snapshot is every parameter plus where on the map we are.
+// ---------------------------------------------------------------------------
+JackpotProcessor::Snap JackpotProcessor::snapshot() const
+{
+    Snap s;
+    for (auto* p : params) s.v.push_back (p->getValue());
+    s.region = region(); s.onMap = onMap(); s.gen = generation();
+    return s;
+}
+
+bool JackpotProcessor::sameSnap (const Snap& a, const Snap& b)
+{
+    if (a.v.size() != b.v.size() || a.region != b.region || a.onMap != b.onMap) return false;
+    for (size_t i = 0; i < a.v.size(); ++i) if (std::abs (a.v[i] - b.v[i]) > 1e-5f) return false;
+    return true;
+}
+
+void JackpotProcessor::restore (const Snap& s)
+{
+    if (s.v.size() != params.size()) return;
+    restoring = true;
+    for (size_t i = 0; i < params.size(); ++i)
+        if (std::abs (params[i]->getValue() - s.v[i]) > 1e-6f)
+        {
+            params[i]->beginChangeGesture();
+            params[i]->setValueNotifyingHost (s.v[i]);
+            params[i]->endChangeGesture();
+        }
+    setMeta ("region", s.region); setMeta ("onMap", s.onMap); setMeta ("gen", s.gen);
+    syncMap();              // the map cursor moved with the snapshot: don't re-apply the map sound
+    restoring = false;
+    pendingCommit = false;
+    ++changeCounter;
+}
+
+void JackpotProcessor::commitUndo()
+{
+    auto s = snapshot();
+    if (undoPos >= 0 && sameSnap (s, undoStack[(size_t) undoPos])) return;
+    undoStack.resize ((size_t) (undoPos + 1));     // a new change drops anything you could redo
+    undoStack.push_back (s);
+    if (undoStack.size() > 200) undoStack.erase (undoStack.begin());
+    undoPos = (int) undoStack.size() - 1;
+    ++changeCounter;
+}
+
+void JackpotProcessor::resetUndo()
+{
+    undoStack.assign (1, snapshot());
+    undoPos = 0;
+    pendingCommit = false;
+}
+
+bool JackpotProcessor::canUndo() const
+{
+    return undoPos > 0 || pendingCommit || (undoPos == 0 && ! sameSnap (snapshot(), undoStack[0]));
+}
+
+bool JackpotProcessor::undo()
+{
+    commitUndo();                                   // anything not yet recorded (e.g. host automation)
+    if (undoPos <= 0) return false;
+    restore (undoStack[(size_t) --undoPos]);
+    return true;
+}
+
+bool JackpotProcessor::redo()
+{
+    if (! canRedo()) return false;
+    restore (undoStack[(size_t) ++undoPos]);
+    return true;
+}
+
+juce::String JackpotProcessor::encodeSnap (const Snap& s)
+{
+    jackpot::Genome g; g.v = s.v;
+    return juce::String (s.region) + ";" + (s.onMap ? "1" : "0") + ";" + juce::String (s.gen) + ";" + g.encode();
+}
+
+JackpotProcessor::Snap JackpotProcessor::decodeSnap (const juce::String& str) const
+{
+    Snap s;
+    auto parts = juce::StringArray::fromTokens (str, ";", "");
+    if (parts.size() != 4) return s;
+    s.region = parts[0].getIntValue(); s.onMap = parts[1] == "1"; s.gen = parts[2].getIntValue();
+    s.v = upgrade (jackpot::Genome::decode (parts[3])).v;
+    return s;
+}
+
+void JackpotProcessor::switchAB()
+{
+    auto ab = apvts.state.getOrCreateChildWithName ("AB", nullptr);
+    const bool b = isB();
+    const auto cur = snapshot();
+    ab.setProperty (b ? "b" : "a", encodeSnap (cur), nullptr);
+    auto other = ab[b ? "a" : "b"].toString();
+    ab.setProperty ("slot", b ? "A" : "B", nullptr);
+    if (other.isEmpty()) ab.setProperty (b ? "a" : "b", encodeSnap (cur), nullptr);   // first visit: starts as a copy
+    else
+    {
+        auto s = decodeSnap (other);
+        if (s.v.size() == params.size()) { restore (s); commitUndo(); }
+    }
+    ++changeCounter;
+}
+
+void JackpotProcessor::copyToOtherSlot()
+{
+    auto ab = apvts.state.getOrCreateChildWithName ("AB", nullptr);
+    ab.setProperty (isB() ? "a" : "b", encodeSnap (snapshot()), nullptr);
+    ++changeCounter;
+}
 
 // ---------------------------------------------------------------------------
 //  Map + family
@@ -349,6 +469,7 @@ void JackpotProcessor::syncMap()
 
 void JackpotProcessor::timerCallback()
 {
+    if (pendingCommit && ! mapGesture) { pendingCommit = false; commitUndo(); }
     const float x = apvts.getRawParameterValue ("map_x")->load();
     const float y = apvts.getRawParameterValue ("map_y")->load();
     const float c = apvts.getRawParameterValue ("chaos")->load();
@@ -382,6 +503,7 @@ void JackpotProcessor::endMapGesture()
     mapGesture = false;
     apvts.getParameter ("map_x")->endChangeGesture();
     apvts.getParameter ("map_y")->endChangeGesture();
+    pendingCommit = true;
 }
 
 void JackpotProcessor::setMap (float x, float y)
@@ -508,7 +630,7 @@ void JackpotProcessor::loadState (const juce::ValueTree& newState, bool keepLock
             copy.setProperty (id, apvts.state.getProperty (id, false), nullptr);
         }
     // keep the session's trail and kept list when loading a single patch
-    for (auto name : { "TRAIL", "KEPT" })
+    for (auto name : { "TRAIL", "KEPT", "AB" })
     {
         auto mine = apvts.state.getChildWithName (name);
         if (mine.isValid() && ! copy.getChildWithName (name).isValid())
@@ -530,6 +652,7 @@ void JackpotProcessor::loadState (const juce::ValueTree& newState, bool keepLock
     }
     apvts.replaceState (copy);
     syncMap();
+    pendingCommit = true;     // loading a preset is undoable
     ++changeCounter;
 }
 
@@ -544,7 +667,10 @@ void JackpotProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
         if (xml->hasTagName (apvts.state.getType()))
+        {
             loadState (juce::ValueTree::fromXml (*xml), false);
+            resetUndo();      // a freshly opened session starts with a clean undo history
+        }
 }
 
 juce::AudioProcessorEditor* JackpotProcessor::createEditor()

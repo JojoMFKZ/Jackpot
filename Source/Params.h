@@ -154,6 +154,9 @@ inline const std::vector<ParamSpec>& paramSpecs()
         { "reso_decay",  "Resonator Decay",  "DECAY",  Module::Resonator, Kind::Float, 0.f, 1.f, 0.5f, -1.f, "", Rnd::Normal },
         { "reso_bright", "Resonator Bright", "BRIGHT", Module::Resonator, Kind::Float, 0.f, 1.f, 0.6f, -1.f, "", Rnd::Normal },
         { "reso_mix",    "Resonator Mix",    "MIX",    Module::Resonator, Kind::Float, 0.f, 1.f, 0.5f, -1.f, "", Rnd::Gentle },
+
+        // (added in 1.2)
+        { "gate",        "Noise Gate",       "GATE",   Module::Global, Kind::Float, -80.f, -20.f, -80.f, -100.f, "gate", Rnd::Never },
     };
     return specs;
 }
@@ -219,6 +222,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                         return juce::String (names[i]) + ">" + names[i + 1];
                     }
                     if (unit == "bit") return juce::String (v, 1) + " bit";
+                    if (unit == "gate") return v <= -79.5f ? juce::String ("Off") : juce::String (juce::roundToInt (v)) + " dB";
                     if (unit == "note") return juce::String (dsp_noteName (juce::roundToInt (v)));
                     if (unit == "harm") return juce::String (dsp_harmName (juce::roundToInt (v)));
                     if (unit == "chord") return juce::String (dsp_chordName (juce::roundToInt (v)));

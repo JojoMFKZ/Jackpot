@@ -6,7 +6,7 @@
 #include "PresetManager.h"
 #include "Evolution.h"
 
-class JackpotProcessor : public juce::AudioProcessor, private juce::Timer
+class JackpotProcessor : public juce::AudioProcessor, private juce::Timer, private juce::AudioProcessorParameter::Listener
 {
 public:
     JackpotProcessor();
@@ -68,8 +68,18 @@ public:
     void setLocked (jackpot::Module m, bool locked);
 
     void pushHistory();
+
+    // ---- undo / redo: every knob change, map move, breed and preset load (message thread)
     bool undo();
-    bool canUndo() const { return apvts.state.getChildWithName ("TRAIL").getNumChildren() > 0; }
+    bool redo();
+    bool canUndo() const;
+    bool canRedo() const { return undoPos + 1 < (int) undoStack.size(); }
+    void markEdited() { pendingCommit = true; }
+
+    // ---- A/B: two versions of the sound to flip between (saved with the session)
+    bool isB() const { return apvts.state.getChildWithName ("AB")["slot"].toString() == "B"; }
+    void switchAB();             // store the current sound in this slot, load the other one
+    void copyToOtherSlot();      // make the other slot the same as what you hear now
     void loadState (const juce::ValueTree& newState, bool keepLocks = true);
 
     juce::RangedAudioParameter* param (int index) const { return params[(size_t) index]; }
@@ -85,6 +95,21 @@ public:
 
 private:
     void timerCallback() override;
+    void parameterValueChanged (int, float) override {}
+    void parameterGestureChanged (int, bool starting) override { if (! starting && ! restoring) pendingCommit = true; }
+
+    struct Snap { std::vector<float> v; int region = 12; bool onMap = true; int gen = 1; };
+    Snap snapshot() const;
+    void restore (const Snap&);
+    static bool sameSnap (const Snap&, const Snap&);
+    static juce::String encodeSnap (const Snap&);
+    Snap decodeSnap (const juce::String&) const;
+    void commitUndo();
+    void resetUndo();
+    std::vector<Snap> undoStack;
+    int undoPos = -1;
+    std::atomic<bool> pendingCommit { false };
+    bool restoring = false;
     void syncMap();
     float lastMapX = -1.f, lastMapY = -1.f, lastChaos = -1.f;
     bool mapGesture = false;
@@ -109,6 +134,7 @@ private:
     jackpot::dsp::Verb verb;
     jackpot::dsp::Harmony harmony;
     jackpot::dsp::Resonator resonator;
+    jackpot::dsp::Gate gate;
 
     std::array<float, jackpot::kNumFx + 1> modLevel {};   // fade in/out per module
     std::array<bool, jackpot::kNumFx + 1> modOn {};

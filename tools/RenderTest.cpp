@@ -342,6 +342,94 @@ int main (int argc, char** argv)
         check (! p.trail().empty() && p.trail().back().g.v.size() == (size_t) p.numParams(), "old trail entries still load");
     }
 
+
+    // ---- 1.2: noise gate
+    {
+        const double sr = 48000.0;
+        juce::AudioBuffer<float> in (2, (int) (sr * 4));
+        juce::Random rng (5);
+        auto notes = makeGuitar (sr, 2.0);
+        for (int i = 0; i < in.getNumSamples(); ++i)
+        {
+            float hum = 0.003f * (float) std::sin (2.0 * juce::MathConstants<double>::pi * 60.0 * i / sr) + (rng.nextFloat() * 2.f - 1.f) * 0.001f; // about -50 dB
+            float v = hum + (i < notes.getNumSamples() ? notes.getSample (0, i) : 0.f);
+            in.setSample (0, i, v); in.setSample (1, i, v);
+        }
+        auto tailRms = [&] (const juce::AudioBuffer<float>& b) { double sum = 0; int a = (int) (sr * 3.2), n = (int) (sr * 0.8);
+            for (int i = a; i < a + n; ++i) sum += b.getSample (0, i) * b.getSample (0, i); return db ((float) std::sqrt (sum / n)); };
+        auto noteRms = [&] (const juce::AudioBuffer<float>& b) { double sum = 0; int n = (int) (sr * 1.0);
+            for (int i = 0; i < n; ++i) sum += b.getSample (0, i) * b.getSample (0, i); return db ((float) std::sqrt (sum / n)); };
+        auto set = std::initializer_list<std::pair<const char*, float>> { { "fuzz_on", 1 }, { "fuzz_sustain", 1 }, { "autolevel", 0 } };
+        auto off = renderWith (p, { { "fuzz_on", 1 }, { "fuzz_sustain", 1 }, { "autolevel", 0 }, { "gate", -80 } }, in);
+        auto on  = renderWith (p, { { "fuzz_on", 1 }, { "fuzz_sustain", 1 }, { "autolevel", 0 }, { "gate", -40 } }, in);
+        juce::ignoreUnused (set);
+        printf ("     gate: hum after notes %.0f dB (off) -> %.0f dB (on), notes %.1f -> %.1f dB\n", tailRms (off), tailRms (on), noteRms (off), noteRms (on));
+        writeWav (outDir.getChildFile ("50_fuzz_hum_gate_off.wav"), off);
+        writeWav (outDir.getChildFile ("51_fuzz_hum_gate_on.wav"), on);
+        check (tailRms (on) < tailRms (off) - 30.f, "noise gate silences fuzzed hum between notes");
+        check (std::abs (noteRms (on) - noteRms (off)) < 1.0f, "noise gate leaves the notes alone");
+        p.apvts.getParameter ("gate")->setValueNotifyingHost (0.f);
+        p.apvts.getParameter ("autolevel")->setValueNotifyingHost (1.f);
+    }
+
+    // ---- 1.2: undo / redo
+    {
+        auto pump = [] { juce::MessageManager::getInstance()->runDispatchLoopUntil (80); };
+        p.setMap (0.31f, 0.62f); pump();
+        auto s0 = p.evo.current();
+        auto* k = p.apvts.getParameter ("dly_mix");
+        k->beginChangeGesture(); k->setValueNotifyingHost (0.93f); k->endChangeGesture(); pump();
+        auto s1 = p.evo.current();
+        p.goTo (p.evo.breed (s1, nullptr, 77, 2)); pump();
+        auto s2 = p.evo.current();
+        check (p.undo() && same (p.evo.current(), s1), "undo reverts a breed");
+        check (p.undo() && same (p.evo.current(), s0), "undo reverts a knob change");
+        check (p.redo() && same (p.evo.current(), s1) && p.redo() && same (p.evo.current(), s2), "redo brings both back");
+        pump();
+        check (same (p.evo.current(), s2), "undo/redo don't make the map re-apply its sound");
+        p.undo(); pump();
+        k->beginChangeGesture(); k->setValueNotifyingHost (0.11f); k->endChangeGesture(); pump();
+        check (! p.canRedo(), "a new change after undo clears redo");
+    }
+
+    // ---- 1.2: A/B
+    {
+        auto pump = [] { juce::MessageManager::getInstance()->runDispatchLoopUntil (80); };
+        auto a = p.evo.current();
+        check (! p.isB(), "starts on A");
+        p.switchAB(); pump();
+        check (p.isB() && same (p.evo.current(), a), "B starts as a copy of A");
+        p.teleport(); pump();
+        auto b = p.evo.current();
+        p.switchAB(); pump();
+        check (! p.isB() && same (p.evo.current(), a), "switching back to A restores A");
+        p.switchAB(); pump();
+        check (same (p.evo.current(), b), "switching to B restores B");
+        juce::MemoryBlock mb; p.getStateInformation (mb);
+        JackpotProcessor p3; p3.setStateInformation (mb.getData(), (int) mb.getSize()); pump();
+        check (p3.isB() && same (p3.evo.current(), b), "A/B survives saving the session");
+        p3.switchAB(); pump();
+        check (same (p3.evo.current(), a), "...including the other slot");
+        p.switchAB(); pump();
+    }
+
+    // ---- 1.2: CPU with everything on
+    {
+        auto g = makeGuitar (48000.0, 10.0);
+        std::initializer_list<std::pair<const char*, float>> all = { { "fuzz_on", 1 }, { "crush_on", 1 }, { "pitch_on", 1 }, { "filt_on", 1 }, { "tape_on", 1 },
+            { "stut_on", 1 }, { "dly_on", 1 }, { "verb_on", 1 }, { "verb_shimmer", 0.5f }, { "harm_on", 1 }, { "reso_on", 1 }, { "gate", -60 } };
+        renderWith (p, all, g);
+        auto t0 = juce::Time::getMillisecondCounterHiRes();
+        renderWith (p, all, g);
+        double ms = juce::Time::getMillisecondCounterHiRes() - t0;
+        double pct = ms / 10000.0 * 100.0;
+        printf ("     cpu: all 10 effects on = %.1f%% of one core at 48 kHz (this machine)\n", pct);
+        auto t1 = juce::Time::getMillisecondCounterHiRes();
+        renderWith (p, { { "tape_on", 1 }, { "dly_on", 1 }, { "verb_on", 1 } }, g);
+        printf ("     cpu: typical (tape + delay + reverb) = %.1f%%\n", (juce::Time::getMillisecondCounterHiRes() - t1) / 100.0);
+        check (pct < 25.0, "all effects on stays well under a quarter of one core");
+    }
+
     // ---- breeding
     auto parent = p.evo.current();
     auto kid = p.evo.breed (parent, nullptr, 7, 0);

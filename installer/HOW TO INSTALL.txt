@@ -43,7 +43,11 @@ HOW TO USE IT
   Click a trait to lock it and every kid inherits it.
 - MELODIC STUFF: Harmony adds chord voices. Resonator rings in a key - set
   KEY under the hood to your song's key and it stays there.
-- UNDER THE HOOD: every real knob, if you ever want them.
+- UNDER THE HOOD: every real knob, if you ever want them. GATE (next to IN)
+  silences hum and hiss between notes - turn it up until the hum disappears.
+- UNDO / REDO (the arrows at the top) undo anything: knobs, map moves, breeding.
+- A / B: flip between two versions of your sound. "copy -> B" makes the other
+  slot match what you hear now.
 - TRAIL: every sound you've visited. Click one to go back.
 - Map X and Map Y can be automated in Ableton, so your sound can wander
   across the map during a song.

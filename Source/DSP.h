@@ -107,6 +107,49 @@ struct DelayLine
 };
 
 // ============================================================================
+//  NOISE GATE — on the input, so hum and hiss between notes don't get fuzzed,
+//  resonated and reverbed. Opens fast, holds a moment, closes smoothly, with
+//  6 dB of hysteresis so it doesn't chatter. Off at the bottom of the knob.
+// ============================================================================
+class Gate
+{
+public:
+    float thresholdDb = -80.f;
+
+    void prepare (double sampleRate) { sr = sampleRate; reset(); }
+    void reset() { env = 0.f; gain = 1.f; open = true; holdLeft = 0; }
+    bool isOpen() const { return open; }
+    float currentGain() const { return gain; }
+
+    void process (float* L, float* R, int n)
+    {
+        if (thresholdDb <= -79.5f) { gain = 1.f; open = true; return; }   // off
+        const float thrOpen = juce::Decibels::decibelsToGain (thresholdDb);
+        const float thrClose = thrOpen * 0.5f;
+        const float rel = std::exp (-1.f / (0.05f * (float) sr));      // envelope release 50 ms
+        const float gAtk = 1.f - std::exp (-1.f / (0.0005f * (float) sr));
+        const float gRel = 1.f - std::exp (-1.f / (0.08f * (float) sr));
+        const int hold = (int) (0.06 * sr);
+        for (int i = 0; i < n; ++i)
+        {
+            const float x = juce::jmax (std::abs (L[i]), std::abs (R[i]));
+            env = x > env ? x : env * rel;
+            if (env > thrOpen) { open = true; holdLeft = hold; }
+            else if (env < thrClose) { if (holdLeft > 0) --holdLeft; else open = false; }
+            const float target = open ? 1.f : 0.f;
+            gain += (target > gain ? gAtk : gRel) * (target - gain);
+            L[i] *= gain; R[i] *= gain;
+        }
+    }
+
+private:
+    double sr = 44100.0;
+    float env = 0.f, gain = 1.f;
+    bool open = true;
+    int holdLeft = 0;
+};
+
+// ============================================================================
 //  FUZZ — two cascaded clipping stages, coupling caps, scooped tone stack.
 //  Starve = dying-battery sputter, Octave = rectifier octave-up.
 // ============================================================================

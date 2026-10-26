@@ -478,7 +478,7 @@ HoodView::HoodView (JackpotProcessor& p) : proc (p)
         }
         boxes.push_back (std::move (box));
     }
-    for (auto id : { "in_gain", "drift", "drift_rate" })
+    for (auto id : { "in_gain", "gate", "drift", "drift_rate" })
     {
         for (auto& s : specs)
             if (! std::strcmp (s.id, id))
@@ -507,8 +507,8 @@ void HoodView::resized()
     done.setBounds (getWidth() - 16 - 64, 12, 64, 28);
     int gx = 16;
     for (auto* k : globals) { k->setBounds (gx, 48, 44, 50); gx += 50; }
-    shuffle.setBounds (gx + 6, 52, 96, 24);
-    chainArea = { gx + 10, 78, getWidth() - gx - 26, 16 };
+    shuffle.setBounds (done.getX() - 8 - 100, 14, 100, 24);
+    chainArea = { gx + 10, 56, getWidth() - gx - 26, 30 };
 
     const int rows = ((int) boxes.size() + 1) / 2;
     const int top = 102, gap = 6, colW = (getWidth() - 32 - gap) / 2, rowH = (getHeight() - top - 12 - gap * (rows - 1)) / rows;
@@ -556,7 +556,8 @@ void HoodView::paint (Graphics& g)
     g.setFont (Fonts::get().sans (11.f));
     g.drawText ("The real effects behind each trait. You never have to touch these.", 16, 34, getWidth() - 110, 14, juce::Justification::centredLeft);
     g.setFont (Fonts::get().mono (10.f));
-    g.drawText (chainText (proc), chainArea, juce::Justification::centredLeft, true);
+    g.drawText ("SIGNAL ORDER", chainArea.getX(), chainArea.getY() - 12, 120, 12, juce::Justification::centredLeft);
+    g.drawFittedText (chainText (proc), chainArea, juce::Justification::topLeft, 2, 1.f);
 
     for (auto& b : boxes)
     {
@@ -888,6 +889,13 @@ void JackpotEditor::Canvas::paint (Graphics& g)
     g.setColour (juce::Colour (0xff2a2b30));
     g.fillRect (x + 10.f, 20.f, 1.f, 16.f);
 
+    // A | B backdrop
+    auto ab = ed.slotA.getBounds().getUnion (ed.slotB.getBounds()).toFloat().expanded (3.f, 0.f);
+    g.setColour (juce::Colour (0xff17181c));
+    g.fillRoundedRectangle (ab, 10.f);
+    g.setColour (colours::line);
+    g.drawRoundedRectangle (ab.reduced (0.5f), 10.f, 1.f);
+
     g.setColour (colours::muted);
     g.setFont (Fonts::get().mono (11.f));
     juce::String origin = p.onMap() ? "R" + juce::String (p.region()) + U8 (" \xc2\xb7 ")
@@ -930,7 +938,8 @@ JackpotEditor::JackpotEditor (JackpotProcessor& p)
     addAndMakeVisible (canvas);
     canvas.setSize (baseW, baseH);
     for (juce::Component* c : { (juce::Component*) &map, (juce::Component*) &family, (juce::Component*) &trail,
-                                (juce::Component*) &back, (juce::Component*) &keep, (juce::Component*) &saveAs, (juce::Component*) &nameButton })
+                                (juce::Component*) &undoBtn, (juce::Component*) &redoBtn, (juce::Component*) &slotA, (juce::Component*) &slotB,
+                                (juce::Component*) &copySlot, (juce::Component*) &keep, (juce::Component*) &saveAs, (juce::Component*) &nameButton })
         canvas.addAndMakeVisible (c);
 
     mixKnob = std::make_unique<Knob> (proc, "mix", "MIX", colours::soft);
@@ -941,8 +950,20 @@ JackpotEditor::JackpotEditor (JackpotProcessor& p)
     autoAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "autolevel", autoLevel);
     autoLevel.setTooltip ("Keeps wild sounds near your guitar's volume");
 
-    back.onClick = [this] { proc.back(); refreshAll(); };
-    back.setTooltip ("Go back to the previous sound");
+    undoBtn.onClick = [this] { proc.undo(); refreshAll(); };
+    redoBtn.onClick = [this] { proc.redo(); refreshAll(); };
+    undoBtn.setTooltip ("Undo: knob changes, map moves, breeding, presets");
+    redoBtn.setTooltip ("Redo");
+    undoBtn.fontSize = redoBtn.fontSize = 16.f;
+    undoBtn.setComponentID ("undo");
+    redoBtn.setComponentID ("redo");
+    slotA.onClick = [this] { if (proc.isB()) proc.switchAB(); refreshAll(); };
+    slotB.onClick = [this] { if (! proc.isB()) proc.switchAB(); refreshAll(); };
+    slotA.setTooltip ("Compare two versions of your sound. B starts as a copy of A.");
+    slotB.setTooltip ("Compare two versions of your sound. B starts as a copy of A.");
+    slotB.setComponentID ("slotB");
+    copySlot.fontSize = 11.f;
+    copySlot.onClick = [this] { proc.copyToOtherSlot(); refreshAll(); };
     keep.onClick = [this] { proc.keepCurrent(); refreshAll(); };
     keep.setTooltip ("Keep this sound: it's saved to your presets and can be used as a mate");
     saveAs.onClick = [this] { askToSave(); };
@@ -989,11 +1010,20 @@ void JackpotEditor::refreshAll()
     keep.setButtonText (kept ? U8 ("\xe2\x98\x85  Kept") : U8 ("\xe2\x98\x86  Keep"));
     keep.selected = kept;
     keep.accent = colours::gold;
-    back.setEnabled (proc.canUndo());
+    undoBtn.setEnabled (proc.canUndo());
+    redoBtn.setEnabled (proc.canRedo());
+    const bool b = proc.isB();
+    slotA.selected = ! b; slotB.selected = b;
+    copySlot.setButtonText (b ? U8 ("copy \xe2\x86\x92 A") : U8 ("copy \xe2\x86\x92 B"));
+    copySlot.setTooltip (b ? "Make A the same as what you hear now" : "Make B the same as what you hear now");
 
     saveAs.setBounds (baseW - 20 - 86, 12, 86, 32);
     keep.setBounds (saveAs.getX() - 8 - 84, 12, 84, 32);
-    back.setBounds (keep.getX() - 8 - 80, 12, 80, 32);
+    copySlot.setBounds (keep.getX() - 8 - 62, 12, 62, 32);
+    slotB.setBounds (copySlot.getX() - 2 - 32, 12, 32, 32);
+    slotA.setBounds (slotB.getX() - 32, 12, 32, 32);
+    redoBtn.setBounds (slotA.getX() - 14 - 36, 12, 36, 32);
+    undoBtn.setBounds (redoBtn.getX() - 6 - 36, 12, 36, 32);
 
     map.refresh();
     family.rebuild();

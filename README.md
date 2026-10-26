@@ -22,9 +22,11 @@ creatures, and keep your favourites.
 | **Map** | Every point is a different patch. Nearby points sound alike, far points don't. The map is endless (Teleport jumps to a new region) and any spot is reproducible. **Close / Wider / Wild** sets how fast sounds change. **Map X / Map Y** are automatable, so a song can wander the map. |
 | **Family** | The current sound is a creature. Its six kids are mutations; click one to make it the parent. Pick a kept sound as a **mate** and kids inherit each effect whole from one parent or the other. |
 | **Traits** | Every effect is a visible trait: spiky hair = fuzz, glitchy skin = crush, tall/short = pitch, mouth shape = filter, faded and wobbly = tape, third eye = stutter, ghost trail = delay, halo = reverb, antennae = harmony, heart = resonator. Click a trait to **lock** it and every kid and map move keeps it. |
-| **Trail** | Every sound you visit. Click to go back; **Back** steps one. |
+| **Trail** | Every sound you visit. Click one to go back to it. |
+| **Undo / Redo** | Every knob change, map move, breed and preset load. |
+| **A / B** | Two versions of your sound to flip between; B starts as a copy of A. Saved with your project. |
 | **Keep** | Remembers the sound for mating and saves it to `Documents/ODDKIN/Presets`. |
-| **Under the hood** | All 71 real parameters, for when you want them. |
+| **Under the hood** | All 72 real parameters, for when you want them, including a noise GATE for hum between notes. |
 
 ### The effects underneath
 

@@ -109,7 +109,7 @@ bool PresetManager::save (const juce::String& name)
     if (clean.isEmpty()) return false;
     proc.setMeta ("patchName", name.trim());
     auto state = proc.apvts.copyState();
-    for (auto n : { "TRAIL", "KEPT" })
+    for (auto n : { "TRAIL", "KEPT", "AB" })
         if (auto c = state.getChildWithName (n); c.isValid()) state.removeChild (c, nullptr);
     auto xml = state.createXml();
     if (xml == nullptr) return false;

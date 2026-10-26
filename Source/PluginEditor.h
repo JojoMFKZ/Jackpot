@@ -223,7 +223,9 @@ private:
     jackpot::ui::MapView map;
     jackpot::ui::FamilyView family;
     jackpot::ui::TrailView trail;
-    jackpot::ui::Pill back { U8 ("\xe2\x86\x90  Back") }, keep { U8 ("\xe2\x98\x86  Keep") }, saveAs { U8 ("Save as\xe2\x80\xa6") }, nameButton { "", jackpot::ui::Pill::Ghost };
+    jackpot::ui::Pill undoBtn { U8 ("\xe2\x86\xb6") }, redoBtn { U8 ("\xe2\x86\xb7") };
+    jackpot::ui::Pill slotA { "A", jackpot::ui::Pill::Segment }, slotB { "B", jackpot::ui::Pill::Segment }, copySlot { "", jackpot::ui::Pill::Ghost };
+    jackpot::ui::Pill keep { U8 ("\xe2\x98\x86  Keep") }, saveAs { U8 ("Save as\xe2\x80\xa6") }, nameButton { "", jackpot::ui::Pill::Ghost };
     std::unique_ptr<jackpot::ui::Knob> mixKnob, outKnob;
     jackpot::ui::Switch autoLevel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> autoAttach;
