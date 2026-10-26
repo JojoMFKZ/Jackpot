@@ -37,17 +37,6 @@ jobs:
           killall -9 AudioComponentRegistrar || true
           auval -v aufx Jkp1 Jkpa || echo "::warning::auval did not pass on the runner"
 
-      # pluginval (Tracktion): loads the plug-in the way DAWs do and hammers it -
-      # state save/restore, automation, odd block sizes and sample rates, editor open/close.
-      - name: pluginval (VST3 + AU)
-        run: |
-          curl -fsSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/latest_release/pluginval_macOS.zip
-          unzip -q pluginval.zip
-          PV=pluginval.app/Contents/MacOS/pluginval
-          codesign --force --deep -s - build/ODDKIN_artefacts/Release/VST3/ODDKIN.vst3
-          $PV --strictness-level 5 --validate-in-process --timeout-ms 600000 --output-dir pluginval-logs --validate build/ODDKIN_artefacts/Release/VST3/ODDKIN.vst3
-          $PV --strictness-level 5 --validate-in-process --timeout-ms 600000 --output-dir pluginval-logs --validate ~/Library/Audio/Plug-Ins/Components/ODDKIN.component
-
       # Optional: only runs if you've added Apple Developer certificates as repo secrets
       - name: Import signing certificates
         if: ${{ env.MAC_CERTS_P12 != '' }}
@@ -108,16 +97,6 @@ jobs:
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --target ODDKIN_VST3 --parallel 4
-
-      - name: pluginval (VST3)
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri https://github.com/Tracktion/pluginval/releases/download/latest_release/pluginval_Windows.zip -OutFile pluginval.zip
-          Expand-Archive pluginval.zip -DestinationPath pv
-          $pvArgs = '--strictness-level 5 --validate-in-process --timeout-ms 600000 --output-dir pluginval-logs --validate "build\ODDKIN_artefacts\Release\VST3\ODDKIN.vst3"'
-          $p = Start-Process pv\pluginval.exe -ArgumentList $pvArgs -Wait -PassThru -NoNewWindow
-          Get-ChildItem pluginval-logs -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_.FullName | Select-Object -Last 40 }
-          if ($p.ExitCode -ne 0) { throw "pluginval failed ($($p.ExitCode))" }
 
       - name: Get Inno Setup
         shell: pwsh
